@@ -22,5 +22,6 @@ class Database:
                     "current_model": TOGETHER_MODEL,
                     "created_at": datetime.utcnow(),
                     "messages_history": [],
+                    "image_mode": False,
                 }
             )
