@@ -1,47 +1,41 @@
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
 
 from config import CLAUDE_MODEL, GPT_MODEL, TOGETHER_MODEL
 
 
-def get_start_keyboard() -> InlineKeyboardMarkup:
+def get_start_keyboard() -> ReplyKeyboardMarkup:
     keyboard = [
         [
-            InlineKeyboardButton(
-                text="💰 Пополнить баланс", callback_data="add_balance"
-            ),
-            InlineKeyboardButton(
-                text="🤖 Выбрать модель", callback_data="select_model"
-            ),
+            KeyboardButton(text="💰 Пополнить баланс"),
+            KeyboardButton(text="🤖 Выбрать модель"),
         ],
-        [InlineKeyboardButton(text="ℹ️ Помощь", callback_data="help")],
+        [KeyboardButton(text="ℹ️ Помощь")],
     ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
-def get_payment_keyboard() -> InlineKeyboardMarkup:
+def get_payment_keyboard() -> ReplyKeyboardMarkup:
     keyboard = [
         [
-            InlineKeyboardButton(text="100 токенов - 5$", callback_data="pay_100"),
-            InlineKeyboardButton(text="200 токенов - 10$", callback_data="pay_500"),
+            KeyboardButton(text="100 токенов - 5$"),
+            KeyboardButton(text="200 токенов - 10$"),
         ],
         [
-            InlineKeyboardButton(text="350 токенов - 15$", callback_data="pay_1000"),
-            InlineKeyboardButton(text="650 токенов - 20$", callback_data="pay_5000"),
+            KeyboardButton(text="350 токенов - 15$"),
+            KeyboardButton(text="650 токенов - 20$"),
         ],
-        [InlineKeyboardButton(text="« Назад", callback_data="back_to_main")],
+        [KeyboardButton(text="« Назад")],
     ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 
-def get_models_keyboard() -> InlineKeyboardMarkup:
+def get_models_keyboard() -> ReplyKeyboardMarkup:
     keyboard = [
         [
-            InlineKeyboardButton(text="GPT", callback_data=f"model_{GPT_MODEL}"),
-            InlineKeyboardButton(text="Claude", callback_data=f"model_{CLAUDE_MODEL}"),
-            InlineKeyboardButton(
-                text="Together", callback_data=f"model_{TOGETHER_MODEL}"
-            ),
+            KeyboardButton(text="GPT"),
+            KeyboardButton(text="Claude"),
+            KeyboardButton(text="Together"),
         ],
-        [InlineKeyboardButton(text="« Назад", callback_data="back_to_main")],
+        [KeyboardButton(text="« Назад")],
     ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
