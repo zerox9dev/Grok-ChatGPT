@@ -19,7 +19,7 @@ class Database:
                     "user_id": user_id,
                     "username": username,
                     "balance": 10,
-                    "current_model": GPT_MODEL,
+                    "current_model": TOGETHER_MODEL,
                     "created_at": datetime.utcnow(),
                     "messages_history": [],
                 }
