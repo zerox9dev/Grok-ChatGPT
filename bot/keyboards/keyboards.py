@@ -3,14 +3,19 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import CLAUDE_MODEL, GPT_MODEL, TOGETHER_MODEL
 
 
-def get_start_keyboard():
+def get_start_keyboard(image_mode: bool = False):
     buttons = [
         [
             InlineKeyboardButton(
                 text="🤖 Выбрать модель", callback_data="select_model"
             ),
             InlineKeyboardButton(
-                text="🎨 Режим изображений", callback_data="toggle_image_mode"
+                text=(
+                    "🎨 Выключить режим изображений"
+                    if image_mode
+                    else "🎨 Включить режим изображений"
+                ),
+                callback_data="toggle_image_mode",
             ),
         ],
         [

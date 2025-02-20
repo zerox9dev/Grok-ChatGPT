@@ -34,7 +34,7 @@ async def start_command(message: types.Message, db: Database):
         f"💰 Ваш текущий баланс: {user['balance']} токенов\n"
         f"🤖 Текущая модель: {user['current_model']}\n\n"
         "Начните писать сообщение или выберете действие:",
-        reply_markup=get_start_keyboard(),
+        reply_markup=get_start_keyboard(user.get("image_mode", False)),
     )
 
 
@@ -46,20 +46,31 @@ async def help_callback(callback: types.CallbackQuery):
         "2. Пополните баланс\n"
         "3. Отправляйте сообщения для общения с AI\n\n"
         "Выберите действие:",
-        reply_markup=get_start_keyboard(),
+        reply_markup=get_start_keyboard(user.get("image_mode", False)),
     )
     await callback.answer()
 
 
 @router.callback_query(F.data == "select_model")
 async def select_model_callback(callback: types.CallbackQuery, db: Database):
-    user = await db.users.find_one({"user_id": callback.from_user.id})
-    if user:
+    try:
+        # Сначала ответим на callback чтобы избежать таймаута
+        await callback.answer()
+
+        user = await db.users.find_one({"user_id": callback.from_user.id})
+        if not user:
+            await callback.message.edit_text(
+                "❌ Пользователь не найден. Используйте /start"
+            )
+            return
+
         await callback.message.edit_text(
             f"🤖 Текущая модель: {user['current_model']}\n\n" "Выберите модель:",
             reply_markup=get_models_keyboard(),
         )
-    await callback.answer()
+    except Exception as e:
+        logging.error(f"Error in select_model_callback: {e}")
+        await callback.message.edit_text("❌ Произошла ошибка. Попробуйте позже.")
 
 
 @router.callback_query(F.data.startswith("model_"))
@@ -76,7 +87,7 @@ async def change_model_handler(callback: types.CallbackQuery, db: Database):
         f"✅ Модель изменена на {models[model]}\n\n"
         "Можете отправлять сообщения\n\n"
         "Вернуться в меню:",
-        reply_markup=get_start_keyboard(),
+        reply_markup=get_start_keyboard(user.get("image_mode", False)),
     )
     await callback.answer()
 
@@ -91,13 +102,22 @@ async def add_balance_callback(callback: types.CallbackQuery):
 
 @router.callback_query(F.data == "toggle_image_mode")
 async def toggle_image_mode(callback: types.CallbackQuery, db: Database):
+    user = await db.users.find_one({"user_id": callback.from_user.id})
+    current_mode = not user.get("image_mode", False)  # инвертируем текущий режим
+
     await db.users.update_one(
-        {"user_id": callback.from_user.id}, {"$set": {"image_mode": True}}
+        {"user_id": callback.from_user.id}, {"$set": {"image_mode": current_mode}}
     )
+
+    message = (
+        "🎨 Режим генерации изображений включен\nОтправьте описание желаемого изображения"
+        if current_mode
+        else "📝 Режим генерации изображений выключен\nМожете отправлять текстовые сообщения"
+    )
+
     await callback.message.edit_text(
-        "🎨 Режим генерации изображений включен\n"
-        "Отправьте описание желаемого изображения",
-        reply_markup=get_start_keyboard(),
+        message,
+        reply_markup=get_start_keyboard(user.get("image_mode", False)),
     )
     await callback.answer()
 
@@ -110,7 +130,7 @@ async def back_to_start_callback(callback: types.CallbackQuery, db: Database):
         f"💰 Ваш текущий баланс: {user['balance']} токенов\n"
         f"🤖 Текущая модель: {user['current_model']}\n\n"
         f"Выберите действие:",
-        reply_markup=get_start_keyboard(),
+        reply_markup=get_start_keyboard(user.get("image_mode", False)),
     )
     await callback.answer()
 

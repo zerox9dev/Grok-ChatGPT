@@ -11,6 +11,7 @@ from aiohttp import web
 
 from bot.handlers.handlers import router  # Основной роутер для команд
 from bot.handlers.payments import router as payments_router
+from bot.middlewares.middleware import CallbackMiddleware
 from config import (
     BOT_TOKEN,
     MONGO_URL,
@@ -84,6 +85,9 @@ async def on_startup(bot: Bot):
         await bot.set_my_commands(
             [
                 types.BotCommand(command="/start", description="Начало работы"),
+                types.BotCommand(
+                    command="/add_balance", description="Пополнить баланс"
+                ),
             ]
         )
         logger.info("Команды бота успешно зарегистрированы")
@@ -94,6 +98,7 @@ async def on_startup(bot: Bot):
 async def main():
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
+    dp.update.middleware.register(CallbackMiddleware())
     db = Database(MONGO_URL)
 
     # Регистрируем все маршрутизаторы
