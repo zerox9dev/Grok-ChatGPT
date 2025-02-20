@@ -9,6 +9,7 @@ from bot.keyboards.keyboards import (
     get_payment_keyboard,
     get_start_keyboard,
 )
+from bot.locales.utils import get_text
 from bot.services.claude import ClaudeService
 from bot.services.gpt import GPTService
 from bot.services.together import TogetherService
@@ -22,149 +23,145 @@ together_service = TogetherService()
 router = Router()
 
 
-@router.message(Command("start"))
-async def start_command(message: types.Message, db: Database, user: dict = None):
+async def get_user(
+    db: Database, user_id: int, username: str, language_code: str = "en"
+):
+    user = await db.users.find_one({"user_id": user_id})
     if not user:
         await db.add_user(
-            user_id=message.from_user.id, username=message.from_user.username
+            user_id=user_id, username=username, language_code=language_code
         )
-        user = await db.users.find_one({"user_id": message.from_user.id})
+        user = await db.users.find_one({"user_id": user_id})
+    return user
 
+
+async def send_localized_message(message, key, user, reply_markup=None, **kwargs):
+    language_code = user.get("language_code", "en")
     await message.answer(
-        f"👋 Привет, {user['username']}!\nЯ бот с доступом к различным AI моделям.\n\n"
-        f"💰 Ваш текущий баланс: {user['balance']} токенов\n"
-        f"🤖 Текущая модель: {user['current_model']}\n\n"
-        "Начните писать сообщение или выберете действие:",
+        get_text(key, language_code, **kwargs), reply_markup=reply_markup
+    )
+
+
+async def update_balance_and_history(
+    db, user_id, tokens_cost, model, message_text, response
+):
+    await db.users.update_one(
+        {"user_id": user_id},
+        {
+            "$inc": {"balance": -tokens_cost},
+            "$push": {
+                "messages_history": {
+                    "model": model,
+                    "message": message_text,
+                    "response": response,
+                    "timestamp": datetime.utcnow(),
+                }
+            },
+        },
+    )
+
+
+@router.message(Command("start"))
+async def start_command(message: types.Message, db: Database):
+    user = await get_user(
+        db,
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.language_code or "en",
+    )
+    await send_localized_message(
+        message,
+        "start",
+        user,
         reply_markup=get_start_keyboard(user.get("image_mode", False)),
+        username=user["username"],
+        balance=user["balance"],
+        current_model=user["current_model"],
     )
 
 
 @router.callback_query(F.data == "help")
-async def help_callback(callback: types.CallbackQuery, user: dict = None):
-    await callback.message.edit_text(
-        "ℹ️ <b>СПРАВКА ПО ИСПОЛЬЗОВАНИЮ БОТА</b>\n"
-        "─────────────────────────\n\n"
-        "🤖 <b>Доступные модели:</b>\n"
-        "• <b>GPT-4</b> - самая мощная модель, отлично подходит для сложных задач\n"
-        "• <b>Claude 3</b> - специализируется на длинных диалогах и анализе\n"
-        "• <b>Together</b> - быстрая модель для простых запросов\n\n"
-        "💰 <b>Стоимость использования:</b>\n"
-        "• Текстовый запрос - <b>1 токен</b>\n"
-        "• Генерация изображения - <b>5 токенов</b>\n\n"
-        "💳 <b>Пополнение баланса:</b>\n"
-        "• <b>100</b> токенов - <b>5$</b>\n"
-        "• <b>500</b> токенов - <b>20$</b>\n"
-        "• <b>1000</b> токенов - <b>35$</b>\n"
-        "• <b>5000</b> токенов - <b>150$</b>\n\n"
-        "📝 <b>Как пользоваться:</b>\n"
-        "1️⃣ Выберите AI модель\n"
-        "2️⃣ Пополните баланс\n"
-        "3️⃣ Отправляйте текстовые сообщения или включите режим генерации изображений\n\n"
-        "⚠️ <b>ВАЖНО:</b>\n"
-        "После генерации изображения не забудьте выключить режим изображений, "
-        "чтобы случайно не потратить 5 токенов на следующее сообщение!\n\n"
-        "─────────────────────────\n"
-        "<i>Выберите действие:</i>",
+async def help_callback(callback: types.CallbackQuery, user: dict):
+    await send_localized_message(
+        callback.message,
+        "help",
+        user,
         reply_markup=get_start_keyboard(user.get("image_mode", False)),
     )
 
 
 @router.callback_query(F.data == "select_model")
-async def select_model_callback(callback: types.CallbackQuery, user: dict = None):
-    if not user:
-        await callback.message.edit_text(
-            "❌ Пользователь не найден. Используйте /start"
-        )
-        return
-
-    await callback.message.edit_text(
-        f"🤖 Текущая модель: {user['current_model']}\n\n" "Выберите модель:",
-        reply_markup=get_models_keyboard(),
+async def select_model_callback(callback: types.CallbackQuery, user: dict):
+    await send_localized_message(
+        callback.message,
+        "select_model",
+        user,
+        reply_markup=get_models_keyboard(user.get("language_code", "en")),
+        current_model=user["current_model"],
     )
 
 
 @router.callback_query(F.data.startswith("model_"))
-async def change_model_handler(
-    callback: types.CallbackQuery, db: Database, user: dict = None
-):
-    if not user:
-        await callback.message.edit_text(
-            "❌ Пользователь не найден. Используйте /start"
-        )
-        return
-
+async def change_model_handler(callback: types.CallbackQuery, db: Database, user: dict):
     model = callback.data.split("_")[1]
     await db.users.update_one(
         {"user_id": callback.from_user.id}, {"$set": {"current_model": model}}
     )
-
     models = {GPT_MODEL: "GPT-4", CLAUDE_MODEL: "Claude 3", TOGETHER_MODEL: "Together"}
-    await callback.message.edit_text(
-        f"✅ Модель изменена на {models[model]}\n\n"
-        "Можете отправлять сообщения\n\n"
-        "Вернуться в меню:",
-        reply_markup=get_start_keyboard(user.get("image_mode", False)),
+    await send_localized_message(
+        callback.message,
+        "model_changed",
+        user,
+        reply_markup=get_start_keyboard(
+            user.get("image_mode", False), user.get("language_code", "en")
+        ),
+        model=models[model],
     )
 
 
 @router.callback_query(F.data == "add_balance")
-async def add_balance_callback(callback: types.CallbackQuery):
-    await callback.message.edit_text(
-        "💰 Выберите сумму пополнения:", reply_markup=get_payment_keyboard()
+async def add_balance_callback(callback: types.CallbackQuery, user: dict):
+    await send_localized_message(
+        callback.message,
+        "add_balance",
+        user,
+        reply_markup=get_payment_keyboard(user.get("language_code", "en")),
     )
 
 
 @router.callback_query(F.data == "toggle_image_mode")
-async def toggle_image_mode(
-    callback: types.CallbackQuery, db: Database, user: dict = None
-):
-    if not user:
-        await callback.message.edit_text(
-            "❌ Пользователь не найден. Используйте /start"
-        )
-        return
-
+async def toggle_image_mode(callback: types.CallbackQuery, db: Database, user: dict):
     current_mode = not user.get("image_mode", False)
     await db.users.update_one(
         {"user_id": callback.from_user.id}, {"$set": {"image_mode": current_mode}}
     )
-
-    message = (
-        "🎨 Режим генерации изображений <b>ВКЛЮЧЕН</b>\n\nОтправьте описание желаемого изображения"
-        if current_mode
-        else "📝 Режим генерации изображений <b>ВЫКЛЮЧЕН</b>\n\nМожете отправлять текстовые сообщения"
-    )
-
-    await callback.message.edit_text(
-        message, reply_markup=get_start_keyboard(current_mode)
+    key = "image_mode_on" if current_mode else "image_mode_off"
+    await send_localized_message(
+        callback.message,
+        key,
+        user,
+        reply_markup=get_start_keyboard(current_mode, user.get("language_code", "en")),
     )
 
 
 @router.callback_query(F.data == "back_to_start")
-async def back_to_start_callback(callback: types.CallbackQuery, user: dict = None):
-    if not user:
-        await callback.message.edit_text(
-            "❌ Пользователь не найден. Используйте /start"
-        )
-        return
-
-    await callback.message.edit_text(
-        f"👋 Главное меню\n"
-        f"💰 Ваш текущий баланс: {user['balance']} токенов\n"
-        f"🤖 Текущая модель: {user['current_model']}\n\n"
-        f"Выберите действие:",
-        reply_markup=get_start_keyboard(user.get("image_mode", False)),
+async def back_to_start_callback(callback: types.CallbackQuery, user: dict):
+    await send_localized_message(
+        callback.message,
+        "back_to_start",
+        user,
+        reply_markup=get_start_keyboard(
+            user.get("image_mode", False), user.get("language_code", "en")
+        ),
+        balance=user["balance"],
+        current_model=user["current_model"],
     )
 
 
 @router.message()
-async def handle_message(message: types.Message, db: Database, user: dict = None):
-    if not user:
-        await message.answer("❌ Вы не зарегистрированы. Используйте /start")
-        return
-
+async def handle_message(message: types.Message, db: Database, user: dict):
     if user["balance"] <= 0 and user["current_model"] != TOGETHER_MODEL:
-        await message.answer("❌ Недостаточно токенов. Пополните баланс!")
+        await send_localized_message(message, "no_tokens", user)
         return
 
     await message.bot.send_chat_action(
@@ -174,14 +171,13 @@ async def handle_message(message: types.Message, db: Database, user: dict = None
     try:
         if user.get("image_mode"):
             if user["balance"] < 5:
-                await message.answer(
-                    "❌ Для генерации изображения нужно минимум 5 токенов!"
-                )
+                await send_localized_message(message, "no_image_tokens", user)
                 return
-
             image_url = await gpt_service.generate_image(message.text)
             await message.answer_photo(image_url)
             tokens_cost = 5
+            model = "dalle-3"
+            response = image_url
         else:
             if user["current_model"] == GPT_MODEL:
                 response = await gpt_service.get_response(message.text)
@@ -192,28 +188,13 @@ async def handle_message(message: types.Message, db: Database, user: dict = None
             else:
                 await message.answer("❌ Неизвестная модель")
                 return
-            await message.answer(response)
             tokens_cost = 0 if user["current_model"] == TOGETHER_MODEL else 1
+            model = user["current_model"]
 
-        await db.users.update_one(
-            {"user_id": message.from_user.id},
-            {
-                "$inc": {"balance": -tokens_cost},
-                "$push": {
-                    "messages_history": {
-                        "model": (
-                            "dalle-3"
-                            if user.get("image_mode")
-                            else user["current_model"]
-                        ),
-                        "message": message.text,
-                        "response": image_url if user.get("image_mode") else response,
-                        "timestamp": datetime.utcnow(),
-                    }
-                },
-            },
+        await update_balance_and_history(
+            db, message.from_user.id, tokens_cost, model, message.text, response
         )
 
     except Exception as e:
-        await message.answer(f"❌ Произошла ошибка: {str(e)}")
+        await send_localized_message(message, "error", user, error=str(e))
         print(f"Error for user {message.from_user.id}: {str(e)}")

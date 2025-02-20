@@ -12,13 +12,15 @@ class Database:
         self.db = self.client.ai_bot
         self.users = self.db.users
 
-    async def add_user(self, user_id: int, username: Optional[str]) -> None:
+    async def add_user(
+        self, user_id: int, username: Optional[str], language_code: str) -> None:
         if not await self.users.find_one({"user_id": user_id}):
             await self.users.insert_one(
                 {
                     "user_id": user_id,
                     "username": username,
                     "balance": 10,
+                    "language_code": language_code,
                     "current_model": TOGETHER_MODEL,
                     "created_at": datetime.utcnow(),
                     "messages_history": [],
