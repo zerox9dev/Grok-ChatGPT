@@ -1,7 +1,7 @@
 from aiogram import F, Router, types
 
 from bot.keyboards.main import get_models_keyboard, get_payment_keyboard
-from config import CLAUDE_MODEL, GPT_MODEL
+from config import CLAUDE_MODEL, GPT_MODEL, TOGETHER_MODEL
 from database import Database
 
 router = Router()
@@ -37,13 +37,13 @@ async def help_handler(callback: types.CallbackQuery):
 
 @router.callback_query(F.data.startswith("model_"))
 async def change_model_handler(callback: types.CallbackQuery, db: Database):
-    model = callback.data.split("_")[1]  # получаем gpt4 или claude
+    model = callback.data.split("_")[1]
 
     await db.users.update_one(
         {"user_id": callback.from_user.id}, {"$set": {"current_model": model}}
     )
 
-    models = {GPT_MODEL: "GPT-4", CLAUDE_MODEL: "Claude 3"}
+    models = {GPT_MODEL: "GPT-4", CLAUDE_MODEL: "Claude 3", TOGETHER_MODEL: "Together"}
 
     await callback.message.edit_text(
         f"✅ Модель изменена на {models[model]}\n\n" "Можете отправлять сообщения",

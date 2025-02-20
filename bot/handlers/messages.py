@@ -6,12 +6,14 @@ from aiogram.filters import StateFilter
 
 from bot.services.claude import ClaudeService
 from bot.services.gpt import GPTService
-from config import CLAUDE_MODEL, GPT_MODEL
+from bot.services.together import TogetherService
+from config import CLAUDE_MODEL, GPT_MODEL, TOGETHER_MODEL
 from database import Database
 
 router = Router()
 gpt_service = GPTService()
 claude_service = ClaudeService()
+together_service = TogetherService()
 
 
 @router.message(StateFilter(None))
@@ -35,6 +37,8 @@ async def handle_message(message: types.Message, db: Database):
             response = await gpt_service.get_response(message.text)
         elif user["current_model"] == CLAUDE_MODEL:
             response = await claude_service.get_response(message.text)
+        elif user["current_model"] == TOGETHER_MODEL:
+            response = await together_service.get_response(message.text)
         else:
             await message.answer("❌ Неизвестная модель")
             return

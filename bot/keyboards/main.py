@@ -1,6 +1,6 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from config import CLAUDE_MODEL, GPT_MODEL
+from config import CLAUDE_MODEL, GPT_MODEL, TOGETHER_MODEL
 
 
 def get_start_keyboard() -> InlineKeyboardMarkup:
@@ -22,11 +22,11 @@ def get_payment_keyboard() -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton(text="100 токенов - 5$", callback_data="pay_100"),
-            InlineKeyboardButton(text="500 токенов - 10$", callback_data="pay_500"),
+            InlineKeyboardButton(text="200 токенов - 10$", callback_data="pay_500"),
         ],
         [
-            InlineKeyboardButton(text="1000 токенов - 15$", callback_data="pay_1000"),
-            InlineKeyboardButton(text="5000 токенов - 20$", callback_data="pay_5000"),
+            InlineKeyboardButton(text="350 токенов - 15$", callback_data="pay_1000"),
+            InlineKeyboardButton(text="650 токенов - 20$", callback_data="pay_5000"),
         ],
         [InlineKeyboardButton(text="« Назад", callback_data="back_to_main")],
     ]
@@ -38,6 +38,9 @@ def get_models_keyboard() -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(text="GPT", callback_data=f"model_{GPT_MODEL}"),
             InlineKeyboardButton(text="Claude", callback_data=f"model_{CLAUDE_MODEL}"),
+            InlineKeyboardButton(
+                text="Together", callback_data=f"model_{TOGETHER_MODEL}"
+            ),
         ],
         [InlineKeyboardButton(text="« Назад", callback_data="back_to_main")],
     ]
