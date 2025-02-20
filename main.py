@@ -15,8 +15,8 @@ from bot.middlewares.middleware import CallbackMiddleware, UserMiddleware
 from config import (
     BOT_TOKEN,
     MONGO_URL,
+    PORT,
     WEB_SERVER_HOST,
-    WEB_SERVER_PORT,
     WEBHOOK_PATH,
     WEBHOOK_URL,
 )

@@ -25,7 +25,7 @@ STRIPE_WEBHOOK_SECRET = env.str("STRIPE_WEBHOOK_SECRET")
 
 
 WEB_SERVER_HOST = "0.0.0.0"
-PORT = env.str("PORT")
+PORT = env.int("PORT")
 WEBHOOK_PATH = "/telegram-webhook"
 WEBHOOK_URL = env.str("WEBHOOK_URL")
 
