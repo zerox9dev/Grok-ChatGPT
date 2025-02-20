@@ -4,3 +4,4 @@ environs>=9.5.0
 openai
 together
 anthropic
+stripe
