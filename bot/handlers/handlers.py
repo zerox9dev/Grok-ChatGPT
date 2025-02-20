@@ -26,11 +26,14 @@ router = Router()
 async def start_command(message: types.Message, db: Database):
     await db.add_user(user_id=message.from_user.id, username=message.from_user.username)
 
+    # Получаем данные пользователя
+    user = await db.users.find_one({"user_id": message.from_user.id})
+
     await message.answer(
-        "👋 Привет! Я бот с доступом к различным AI моделям.\n"
-        "💰 Ваш текущий баланс: 0 токенов\n"
-        "🤖 Текущая модель: GPT\n\n"
-        "Выберите действие:",
+        f"👋 Привет, {user['username']}!\nЯ бот с доступом к различным AI моделям.\n\n"
+        f"💰 Ваш текущий баланс: {user['balance']} токенов\n"
+        f"🤖 Текущая модель: {user['current_model']}\n\n"
+        "Начните писать сообщение или выберете действие:",
         reply_markup=get_start_keyboard(),
     )
 

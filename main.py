@@ -84,9 +84,6 @@ async def on_startup(bot: Bot):
         await bot.set_my_commands(
             [
                 types.BotCommand(command="/start", description="Начало работы"),
-                types.BotCommand(command="/help", description="Помощь"),
-                types.BotCommand(command="/balance", description="Проверить баланс"),
-                types.BotCommand(command="/models", description="Сменить модель"),
             ]
         )
         logger.info("Команды бота успешно зарегистрированы")
