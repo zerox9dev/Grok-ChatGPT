@@ -3,3 +3,4 @@ motor>=3.3.0
 environs>=9.5.0
 openai
 together
+anthropic
