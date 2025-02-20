@@ -1,7 +1,7 @@
 from aiogram import F, Router, types
 from aiogram.filters import Command
 
-from bot.keyboards.main import get_start_keyboard
+from bot.keyboards.keyboards import get_start_keyboard
 from bot.services.payment import PaymentService
 from database import Database
 
@@ -21,7 +21,10 @@ async def process_payment(callback: types.CallbackQuery, db: Database):
     amount = callback.data.split("_")[1]
 
     if amount not in PRICES:
-        await callback.message.answer("❌ Ошибка: неверная сумма оплаты")
+        await callback.message.edit_text(
+            "❌ Ошибка: неверная сумма оплаты\n\n" "Выберите действие:",
+            reply_markup=get_start_keyboard(),
+        )
         await callback.answer()
         return
 
@@ -30,7 +33,6 @@ async def process_payment(callback: types.CallbackQuery, db: Database):
             amount=PRICES[amount]["amount"]
         )
 
-        # Сохраняем информацию о платеже
         await db.users.update_one(
             {"user_id": callback.from_user.id},
             {
@@ -45,24 +47,26 @@ async def process_payment(callback: types.CallbackQuery, db: Database):
             },
         )
 
-        await callback.message.answer(
+        await callback.message.edit_text(
             f"💳 Оплата {PRICES[amount]['amount']}$ за {PRICES[amount]['tokens']} токенов\n\n"
             f"🔗 Ссылка на оплату: {payment_data['payment_url']}\n\n"
-            "⏳ После оплаты токены будут начислены автоматически"
+            "⏳ После оплаты токены будут начислены автоматически\n\n"
+            "Вернуться в меню:",
+            reply_markup=get_start_keyboard(),
         )
 
     except Exception as e:
-        error_message = str(e)
-        await callback.message.answer(
+        await callback.message.edit_text(
             f"❌ Ошибка при создании платежа:\n"
-            f"└ {error_message}\n\n"
-            "🔄 Попробуйте позже или обратитесь в поддержку"
+            f"└ {str(e)}\n\n"
+            "🔄 Попробуйте позже или обратитесь в поддержку\n\n"
+            "Вернуться в меню:",
+            reply_markup=get_start_keyboard(),
         )
 
     await callback.answer()
 
 
-# Добавим обработчик ошибок в webhook.py
 @router.callback_query(F.data == "payment_error")
 async def handle_payment_error(callback: types.CallbackQuery):
     await callback.message.answer(
