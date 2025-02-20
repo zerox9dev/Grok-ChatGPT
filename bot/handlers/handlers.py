@@ -42,6 +42,10 @@ async def send_localized_message(message, key, user, reply_markup=None, **kwargs
     )
 
 
+async def send_message(message, text, reply_markup=None):
+    await message.answer(text, reply_markup=reply_markup)
+
+
 async def update_balance_and_history(
     db, user_id, tokens_cost, model, message_text, response
 ):
@@ -160,8 +164,12 @@ async def back_to_start_callback(callback: types.CallbackQuery, user: dict):
 
 @router.message()
 async def handle_message(message: types.Message, db: Database, user: dict):
+    print(f"Handling message from user {message.from_user.id}: {message.text}")
+    print(f"User balance: {user['balance']}, current model: {user['current_model']}")
+
     if user["balance"] <= 0 and user["current_model"] != TOGETHER_MODEL:
-        await send_localized_message(message, "no_tokens", user)
+        print("User has no tokens.")
+        await send_message(message, "У вас недостаточно токенов.")
         return
 
     await message.bot.send_chat_action(
@@ -171,30 +179,40 @@ async def handle_message(message: types.Message, db: Database, user: dict):
     try:
         if user.get("image_mode"):
             if user["balance"] < 5:
-                await send_localized_message(message, "no_image_tokens", user)
+                print("User has no image tokens.")
+                await send_message(
+                    message, "У вас недостаточно токенов для генерации изображения."
+                )
                 return
+            print("Generating image...")
             image_url = await gpt_service.generate_image(message.text)
             await message.answer_photo(image_url)
             tokens_cost = 5
             model = "dalle-3"
             response = image_url
         else:
+            print(f"Generating response using model: {user['current_model']}")
             if user["current_model"] == GPT_MODEL:
                 response = await gpt_service.get_response(message.text)
             elif user["current_model"] == CLAUDE_MODEL:
                 response = await claude_service.get_response(message.text)
             elif user["current_model"] == TOGETHER_MODEL:
                 response = await together_service.get_response(message.text)
+                print(f"Generated response: {response}")  # Лог для отладки
             else:
-                await message.answer("❌ Неизвестная модель")
+                await send_message(message, "❌ Неизвестная модель")
                 return
             tokens_cost = 0 if user["current_model"] == TOGETHER_MODEL else 1
             model = user["current_model"]
 
+        print(f"Updating balance and history for user {message.from_user.id}")
         await update_balance_and_history(
             db, message.from_user.id, tokens_cost, model, message.text, response
         )
 
+        # Отправляем ответ пользователю
+        await send_message(message, response)  # Добавлено отправление response
+
     except Exception as e:
-        await send_localized_message(message, "error", user, error=str(e))
         print(f"Error for user {message.from_user.id}: {str(e)}")
+        await send_message(message, f"Произошла ошибка: {str(e)}")
