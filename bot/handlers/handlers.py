@@ -163,7 +163,7 @@ async def handle_message(message: types.Message, db: Database, user: dict = None
         await message.answer("❌ Вы не зарегистрированы. Используйте /start")
         return
 
-    if user["balance"] <= 0:
+    if user["balance"] <= 0 and user["current_model"] != TOGETHER_MODEL:
         await message.answer("❌ Недостаточно токенов. Пополните баланс!")
         return
 
@@ -193,7 +193,7 @@ async def handle_message(message: types.Message, db: Database, user: dict = None
                 await message.answer("❌ Неизвестная модель")
                 return
             await message.answer(response)
-            tokens_cost = 1
+            tokens_cost = 0 if user["current_model"] == TOGETHER_MODEL else 1
 
         await db.users.update_one(
             {"user_id": message.from_user.id},

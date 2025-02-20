@@ -49,7 +49,7 @@ def get_models_keyboard() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="GPT", callback_data=f"model_{GPT_MODEL}"),
             InlineKeyboardButton(text="Claude", callback_data=f"model_{CLAUDE_MODEL}"),
             InlineKeyboardButton(
-                text="Together", callback_data=f"model_{TOGETHER_MODEL}"
+                text="🎁 FREE LLaMA", callback_data=f"model_{TOGETHER_MODEL}"
             ),
         ],
         [InlineKeyboardButton(text="« Назад", callback_data="back_to_start")],
