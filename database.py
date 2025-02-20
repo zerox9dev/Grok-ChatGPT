@@ -3,7 +3,7 @@ from typing import Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from config import GPT_MODEL
+from config import TOGETHER_MODEL
 
 
 class Database:
