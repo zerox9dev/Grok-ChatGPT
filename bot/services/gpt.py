@@ -1,6 +1,6 @@
 from openai import AsyncOpenAI
 
-from config import OPENAI_API_KEY
+from config import GPT_MODEL, MAX_TOKENS, OPENAI_API_KEY
 
 
 class GPTService:
@@ -10,9 +10,9 @@ class GPTService:
     async def get_response(self, message: str) -> str:
         try:
             response = await self.client.chat.completions.create(
-                model="gpt-4o",
+                model=GPT_MODEL,
                 messages=[{"role": "user", "content": message}],
-                max_tokens=1000,
+                max_tokens=MAX_TOKENS,
             )
             return response.choices[0].message.content
         except Exception as e:

@@ -3,6 +3,8 @@ from typing import Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
+from config import GPT_MODEL
+
 
 class Database:
     def __init__(self, url: str):
@@ -16,8 +18,8 @@ class Database:
                 {
                     "user_id": user_id,
                     "username": username,
-                    "balance": 0,
-                    "current_model": "gpt-4o",
+                    "balance": 10,
+                    "current_model": GPT_MODEL,
                     "created_at": datetime.utcnow(),
                     "messages_history": [],
                 }

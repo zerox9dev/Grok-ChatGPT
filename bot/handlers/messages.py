@@ -6,6 +6,7 @@ from aiogram.filters import StateFilter
 
 from bot.services.claude import ClaudeService
 from bot.services.gpt import GPTService
+from config import CLAUDE_MODEL, GPT_MODEL
 from database import Database
 
 router = Router()
@@ -30,9 +31,9 @@ async def handle_message(message: types.Message, db: Database):
     )
 
     try:
-        if user["current_model"] == "gpt-4o":
+        if user["current_model"] == GPT_MODEL:
             response = await gpt_service.get_response(message.text)
-        elif user["current_model"] == "claude":
+        elif user["current_model"] == CLAUDE_MODEL:
             response = await claude_service.get_response(message.text)
         else:
             await message.answer("❌ Неизвестная модель")

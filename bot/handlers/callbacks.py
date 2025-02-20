@@ -1,6 +1,7 @@
 from aiogram import F, Router, types
 
 from bot.keyboards.main import get_models_keyboard, get_payment_keyboard
+from config import CLAUDE_MODEL, GPT_MODEL
 from database import Database
 
 router = Router()
@@ -17,7 +18,7 @@ async def add_balance_handler(callback: types.CallbackQuery, db: Database):
 @router.callback_query(F.data == "select_model")
 async def select_model_handler(callback: types.CallbackQuery, db: Database):
     await callback.message.answer(
-        "🤖 Доступные модели:\n\n" "- GPT-4\n" "- Claude 3",
+        "🤖 Доступные модели:\n\n" "- GPT\n" "- Claude",
         reply_markup=get_models_keyboard(),
     )
     await callback.answer()
@@ -42,7 +43,7 @@ async def change_model_handler(callback: types.CallbackQuery, db: Database):
         {"user_id": callback.from_user.id}, {"$set": {"current_model": model}}
     )
 
-    models = {"gpt-4o": "GPT-4o", "claude": "Claude 3"}
+    models = {GPT_MODEL: "GPT-4", CLAUDE_MODEL: "Claude 3"}
 
     await callback.message.edit_text(
         f"✅ Модель изменена на {models[model]}\n\n" "Можете отправлять сообщения",

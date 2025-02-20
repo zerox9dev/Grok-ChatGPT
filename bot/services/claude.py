@@ -1,6 +1,6 @@
 from anthropic import AsyncAnthropic
 
-from config import ANTHROPIC_API_KEY
+from config import ANTHROPIC_API_KEY, CLAUDE_MODEL, MAX_TOKENS
 
 
 class ClaudeService:
@@ -10,8 +10,8 @@ class ClaudeService:
     async def get_response(self, message: str) -> str:
         try:
             response = await self.client.messages.create(
-                model="claude-3-opus-20240229",
-                max_tokens=4000,
+                model=CLAUDE_MODEL,
+                max_tokens=MAX_TOKENS,
                 messages=[{"role": "user", "content": message}],
             )
             return response.content[0].text
