@@ -11,9 +11,9 @@ def get_start_keyboard(image_mode: bool = False) -> InlineKeyboardMarkup:
             ),
             InlineKeyboardButton(
                 text=(
-                    "🎨 Выключить режим изображений"
+                    "🎨 Выкл. режим изображений"
                     if image_mode
-                    else "🎨 Включить режим изображений"
+                    else "🎨 Вкл. режим изображений"
                 ),
                 callback_data="toggle_image_mode",
             ),
