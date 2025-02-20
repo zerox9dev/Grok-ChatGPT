@@ -121,10 +121,10 @@ async def main():
 
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, WEB_SERVER_HOST, WEB_SERVER_PORT)
+    site = web.TCPSite(runner, WEB_SERVER_HOST, PORT)
     await site.start()
 
-    logger.info(f"Сервер запущен на {WEB_SERVER_HOST}:{WEB_SERVER_PORT}")
+    logger.info(f"Сервер запущен на {WEB_SERVER_HOST}:{PORT}")
     await asyncio.Event().wait()
 
 
