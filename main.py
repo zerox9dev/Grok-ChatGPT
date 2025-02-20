@@ -11,7 +11,7 @@ from aiohttp import web
 
 from bot.handlers.handlers import router  # Основной роутер для команд
 from bot.handlers.payments import router as payments_router
-from bot.middlewares.middleware import CallbackMiddleware
+from bot.middlewares.middleware import CallbackMiddleware, UserMiddleware
 from config import (
     BOT_TOKEN,
     MONGO_URL,
@@ -53,17 +53,17 @@ async def handle_telegram_webhook(request: web.Request, dp: Dispatcher, bot: Bot
             return web.Response(status=400, text="No body")
 
         update_data = await request.json()
-        logger.info(f"Получен запрос от Telegram: {update_data}")
+        # logger.info(f"Получен запрос от Telegram: {update_data}")
 
         if not isinstance(update_data, dict):
             logger.error(f"Некорректный формат данных: {update_data}")
             return web.Response(status=400, text="Invalid JSON")
 
         update = Update(**update_data)
-        logger.info(f"Создан объект Update: {update}")
+        # logger.info(f"Создан объект Update: {update}")
 
         await dp.feed_update(bot, update)
-        logger.info("Обновление передано в Dispatcher")
+        # logger.info("Обновление передано в Dispatcher")
 
         return web.Response(status=200)
     except ValueError as ve:
@@ -96,17 +96,23 @@ async def on_startup(bot: Bot):
 
 
 async def main():
-    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dp = Dispatcher()
-    dp.update.middleware.register(CallbackMiddleware())
+    # 1. Создаем базу данных первой
     db = Database(MONGO_URL)
 
-    # Регистрируем все маршрутизаторы
+    # 2. Создаем бота и диспетчер
+    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    dp = Dispatcher()
+
+    # 3. Регистрируем все middleware
+    dp.update.middleware.register(UserMiddleware(db))
+    dp.update.middleware.register(CallbackMiddleware())
+    dp.update.outer_middleware(DatabaseMiddleware(db))  # Убрал дублирование
+
+    # 4. Регистрируем все маршрутизаторы
     dp.include_router(router)  # Основной роутер для команд
     dp.include_router(payments_router)  # Роутер для платежей
 
-    dp.update.outer_middleware(DatabaseMiddleware(db))
-
+    # 5. Настраиваем веб-приложение
     app = web.Application()
     app.router.add_post(WEBHOOK_PATH, partial(handle_telegram_webhook, dp=dp, bot=bot))
     app.router.add_post("/stripe-webhook", handle_stripe_webhook)

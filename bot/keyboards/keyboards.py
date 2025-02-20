@@ -3,7 +3,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import CLAUDE_MODEL, GPT_MODEL, TOGETHER_MODEL
 
 
-def get_start_keyboard(image_mode: bool = False):
+def get_start_keyboard(image_mode: bool = False) -> InlineKeyboardMarkup:
     buttons = [
         [
             InlineKeyboardButton(

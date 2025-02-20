@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from aiogram import Dispatcher, F, Router, types
+from aiogram import F, Router, types
 from aiogram.enums import ChatAction
-from aiogram.filters import Command, StateFilter
+from aiogram.filters import Command
 
 from bot.keyboards.keyboards import (
     get_models_keyboard,
@@ -23,11 +23,12 @@ router = Router()
 
 
 @router.message(Command("start"))
-async def start_command(message: types.Message, db: Database):
-    await db.add_user(user_id=message.from_user.id, username=message.from_user.username)
-
-    # Получаем данные пользователя
-    user = await db.users.find_one({"user_id": message.from_user.id})
+async def start_command(message: types.Message, db: Database, user: dict = None):
+    if not user:
+        await db.add_user(
+            user_id=message.from_user.id, username=message.from_user.username
+        )
+        user = await db.users.find_one({"user_id": message.from_user.id})
 
     await message.answer(
         f"👋 Привет, {user['username']}!\nЯ бот с доступом к различным AI моделям.\n\n"
@@ -39,7 +40,7 @@ async def start_command(message: types.Message, db: Database):
 
 
 @router.callback_query(F.data == "help")
-async def help_callback(callback: types.CallbackQuery):
+async def help_callback(callback: types.CallbackQuery, user: dict = None):
     await callback.message.edit_text(
         "ℹ️ Справка по использованию бота:\n\n"
         "1. Выберите AI модель\n"
@@ -48,48 +49,44 @@ async def help_callback(callback: types.CallbackQuery):
         "Выберите действие:",
         reply_markup=get_start_keyboard(user.get("image_mode", False)),
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data == "select_model")
-async def select_model_callback(callback: types.CallbackQuery, db: Database):
-    try:
-        # Сначала ответим на callback чтобы избежать таймаута
-        await callback.answer()
-
-        user = await db.users.find_one({"user_id": callback.from_user.id})
-        if not user:
-            await callback.message.edit_text(
-                "❌ Пользователь не найден. Используйте /start"
-            )
-            return
-
+async def select_model_callback(callback: types.CallbackQuery, user: dict = None):
+    if not user:
         await callback.message.edit_text(
-            f"🤖 Текущая модель: {user['current_model']}\n\n" "Выберите модель:",
-            reply_markup=get_models_keyboard(),
+            "❌ Пользователь не найден. Используйте /start"
         )
-    except Exception as e:
-        logging.error(f"Error in select_model_callback: {e}")
-        await callback.message.edit_text("❌ Произошла ошибка. Попробуйте позже.")
+        return
+
+    await callback.message.edit_text(
+        f"🤖 Текущая модель: {user['current_model']}\n\n" "Выберите модель:",
+        reply_markup=get_models_keyboard(),
+    )
 
 
 @router.callback_query(F.data.startswith("model_"))
-async def change_model_handler(callback: types.CallbackQuery, db: Database):
-    model = callback.data.split("_")[1]
+async def change_model_handler(
+    callback: types.CallbackQuery, db: Database, user: dict = None
+):
+    if not user:
+        await callback.message.edit_text(
+            "❌ Пользователь не найден. Используйте /start"
+        )
+        return
 
+    model = callback.data.split("_")[1]
     await db.users.update_one(
         {"user_id": callback.from_user.id}, {"$set": {"current_model": model}}
     )
 
     models = {GPT_MODEL: "GPT-4", CLAUDE_MODEL: "Claude 3", TOGETHER_MODEL: "Together"}
-
     await callback.message.edit_text(
         f"✅ Модель изменена на {models[model]}\n\n"
         "Можете отправлять сообщения\n\n"
         "Вернуться в меню:",
         reply_markup=get_start_keyboard(user.get("image_mode", False)),
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data == "add_balance")
@@ -97,14 +94,19 @@ async def add_balance_callback(callback: types.CallbackQuery):
     await callback.message.edit_text(
         "💰 Выберите сумму пополнения:", reply_markup=get_payment_keyboard()
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data == "toggle_image_mode")
-async def toggle_image_mode(callback: types.CallbackQuery, db: Database):
-    user = await db.users.find_one({"user_id": callback.from_user.id})
-    current_mode = not user.get("image_mode", False)  # инвертируем текущий режим
+async def toggle_image_mode(
+    callback: types.CallbackQuery, db: Database, user: dict = None
+):
+    if not user:
+        await callback.message.edit_text(
+            "❌ Пользователь не найден. Используйте /start"
+        )
+        return
 
+    current_mode = not user.get("image_mode", False)
     await db.users.update_one(
         {"user_id": callback.from_user.id}, {"$set": {"image_mode": current_mode}}
     )
@@ -116,15 +118,18 @@ async def toggle_image_mode(callback: types.CallbackQuery, db: Database):
     )
 
     await callback.message.edit_text(
-        message,
-        reply_markup=get_start_keyboard(user.get("image_mode", False)),
+        message, reply_markup=get_start_keyboard(current_mode)
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data == "back_to_start")
-async def back_to_start_callback(callback: types.CallbackQuery, db: Database):
-    user = await db.users.find_one({"user_id": callback.from_user.id})
+async def back_to_start_callback(callback: types.CallbackQuery, user: dict = None):
+    if not user:
+        await callback.message.edit_text(
+            "❌ Пользователь не найден. Используйте /start"
+        )
+        return
+
     await callback.message.edit_text(
         f"👋 Главное меню\n"
         f"💰 Ваш текущий баланс: {user['balance']} токенов\n"
@@ -132,13 +137,10 @@ async def back_to_start_callback(callback: types.CallbackQuery, db: Database):
         f"Выберите действие:",
         reply_markup=get_start_keyboard(user.get("image_mode", False)),
     )
-    await callback.answer()
 
 
-@router.message(StateFilter(None))
-async def handle_message(message: types.Message, db: Database):
-    user = await db.users.find_one({"user_id": message.from_user.id})
-
+@router.message()
+async def handle_message(message: types.Message, db: Database, user: dict = None):
     if not user:
         await message.answer("❌ Вы не зарегистрированы. Используйте /start")
         return
@@ -153,7 +155,6 @@ async def handle_message(message: types.Message, db: Database):
 
     try:
         if user.get("image_mode"):
-            # Генерация изображения требует больше токенов
             if user["balance"] < 5:
                 await message.answer(
                     "❌ Для генерации изображения нужно минимум 5 токенов!"
