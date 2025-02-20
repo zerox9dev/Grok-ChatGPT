@@ -27,7 +27,7 @@ STRIPE_WEBHOOK_SECRET = env.str("STRIPE_WEBHOOK_SECRET")
 WEB_SERVER_HOST = "0.0.0.0"
 WEB_SERVER_PORT = 8000
 WEBHOOK_PATH = "/telegram-webhook"
-WEBHOOK_URL = "https://4fc6-59-153-128-152.ngrok-free.app"
+WEBHOOK_URL = env.str("WEBHOOK_URL")
 
 
 DALLE_MODEL = "dall-e-3"
