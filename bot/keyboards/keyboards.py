@@ -3,19 +3,24 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from config import CLAUDE_MODEL, GPT_MODEL, TOGETHER_MODEL
 
 
-def get_start_keyboard() -> InlineKeyboardMarkup:
-    keyboard = [
+def get_start_keyboard():
+    buttons = [
+        [
+            InlineKeyboardButton(
+                text="🤖 Выбрать модель", callback_data="select_model"
+            ),
+            InlineKeyboardButton(
+                text="🎨 Режим изображений", callback_data="toggle_image_mode"
+            ),
+        ],
         [
             InlineKeyboardButton(
                 text="💰 Пополнить баланс", callback_data="add_balance"
             ),
-            InlineKeyboardButton(
-                text="🤖 Выбрать модель", callback_data="select_model"
-            ),
+            InlineKeyboardButton(text="ℹ️ Помощь", callback_data="help"),
         ],
-        [InlineKeyboardButton(text="ℹ️ Помощь", callback_data="help")],
     ]
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def get_payment_keyboard() -> InlineKeyboardMarkup:

@@ -17,3 +17,16 @@ class GPTService:
             return response.choices[0].message.content
         except Exception as e:
             return f"Ошибка при получении ответа: {str(e)}"
+
+    async def generate_image(self, prompt: str) -> str:
+        try:
+            response = await self.client.images.generate(
+                model="dall-e-3",
+                prompt=prompt,
+                size="1024x1024",
+                quality="hd",
+                n=1,
+            )
+            return response.data[0].url
+        except Exception as e:
+            raise Exception(f"Ошибка генерации изображения: {str(e)}")

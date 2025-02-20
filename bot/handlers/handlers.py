@@ -89,6 +89,19 @@ async def add_balance_callback(callback: types.CallbackQuery):
     await callback.answer()
 
 
+@router.callback_query(F.data == "toggle_image_mode")
+async def toggle_image_mode(callback: types.CallbackQuery, db: Database):
+    await db.users.update_one(
+        {"user_id": callback.from_user.id}, {"$set": {"image_mode": True}}
+    )
+    await callback.message.edit_text(
+        "🎨 Режим генерации изображений включен\n"
+        "Отправьте описание желаемого изображения",
+        reply_markup=get_start_keyboard(),
+    )
+    await callback.answer()
+
+
 @router.callback_query(F.data == "back_to_start")
 async def back_to_start_callback(callback: types.CallbackQuery, db: Database):
     user = await db.users.find_one({"user_id": callback.from_user.id})
@@ -119,34 +132,49 @@ async def handle_message(message: types.Message, db: Database):
     )
 
     try:
-        if user["current_model"] == GPT_MODEL:
-            response = await gpt_service.get_response(message.text)
-        elif user["current_model"] == CLAUDE_MODEL:
-            response = await claude_service.get_response(message.text)
-        elif user["current_model"] == TOGETHER_MODEL:
-            response = await together_service.get_response(message.text)
-        else:
-            await message.answer("❌ Неизвестная модель")
-            return
+        if user.get("image_mode"):
+            # Генерация изображения требует больше токенов
+            if user["balance"] < 5:
+                await message.answer(
+                    "❌ Для генерации изображения нужно минимум 5 токенов!"
+                )
+                return
 
-        # Сохраняем историю и вычитаем токены только после успешного получения ответа
+            image_url = await gpt_service.generate_image(message.text)
+            await message.answer_photo(image_url)
+            tokens_cost = 5
+        else:
+            if user["current_model"] == GPT_MODEL:
+                response = await gpt_service.get_response(message.text)
+            elif user["current_model"] == CLAUDE_MODEL:
+                response = await claude_service.get_response(message.text)
+            elif user["current_model"] == TOGETHER_MODEL:
+                response = await together_service.get_response(message.text)
+            else:
+                await message.answer("❌ Неизвестная модель")
+                return
+            await message.answer(response)
+            tokens_cost = 1
+
         await db.users.update_one(
             {"user_id": message.from_user.id},
             {
-                "$inc": {"balance": -1},
+                "$inc": {"balance": -tokens_cost},
                 "$push": {
                     "messages_history": {
-                        "model": user["current_model"],
+                        "model": (
+                            "dalle-3"
+                            if user.get("image_mode")
+                            else user["current_model"]
+                        ),
                         "message": message.text,
-                        "response": response,
+                        "response": image_url if user.get("image_mode") else response,
                         "timestamp": datetime.utcnow(),
                     }
                 },
             },
         )
 
-        await message.answer(response)
     except Exception as e:
         await message.answer(f"❌ Произошла ошибка: {str(e)}")
-        # Логирование ошибки для последующей диагностики
         print(f"Error for user {message.from_user.id}: {str(e)}")
