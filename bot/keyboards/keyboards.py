@@ -38,18 +38,18 @@ def get_payment_keyboard(language_code: str = "en") -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton(
-                text=get_text("pay_100", language_code), callback_data="pay_100"
+                text=get_text("pay_50", language_code), callback_data="pay_50"
             ),
             InlineKeyboardButton(
-                text=get_text("pay_500", language_code), callback_data="pay_500"
+                text=get_text("pay_100", language_code), callback_data="pay_100"
             ),
         ],
         [
             InlineKeyboardButton(
-                text=get_text("pay_1000", language_code), callback_data="pay_1000"
+                text=get_text("pay_150", language_code), callback_data="pay_150"
             ),
             InlineKeyboardButton(
-                text=get_text("pay_5000", language_code), callback_data="pay_5000"
+                text=get_text("pay_200", language_code), callback_data="pay_200"
             ),
         ],
         [
