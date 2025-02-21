@@ -77,7 +77,9 @@ async def start_command(message: types.Message, db: Database):
         message,
         "start",
         user,
-        reply_markup=get_start_keyboard(user.get("image_mode", False)),
+        reply_markup=get_start_keyboard(
+            user.get("image_mode", False), user.get("language_code", "en")
+        ),
         username=user["username"],
         balance=user["balance"],
         current_model=user["current_model"],
@@ -96,7 +98,9 @@ async def help_callback(callback: types.CallbackQuery, db: Database):
         callback.message,
         "help",
         user,
-        reply_markup=get_start_keyboard(user.get("image_mode", False)),
+        reply_markup=get_start_keyboard(
+            user.get("image_mode", False), user.get("language_code", "en")
+        ),
     )
 
 
