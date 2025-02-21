@@ -85,7 +85,13 @@ async def start_command(message: types.Message, db: Database):
 
 
 @router.callback_query(F.data == "help")
-async def help_callback(callback: types.CallbackQuery, user: dict):
+async def help_callback(callback: types.CallbackQuery, db: Database):
+    user = await get_user(
+        db,
+        callback.from_user.id,
+        callback.from_user.username,
+        callback.from_user.language_code or "en",
+    )
     await send_localized_message(
         callback.message,
         "help",
@@ -95,7 +101,13 @@ async def help_callback(callback: types.CallbackQuery, user: dict):
 
 
 @router.callback_query(F.data == "select_model")
-async def select_model_callback(callback: types.CallbackQuery, user: dict):
+async def select_model_callback(callback: types.CallbackQuery, db: Database):
+    user = await get_user(
+        db,
+        callback.from_user.id,
+        callback.from_user.username,
+        callback.from_user.language_code or "en",
+    )
     await send_localized_message(
         callback.message,
         "select_model",
@@ -106,7 +118,13 @@ async def select_model_callback(callback: types.CallbackQuery, user: dict):
 
 
 @router.callback_query(F.data.startswith("model_"))
-async def change_model_handler(callback: types.CallbackQuery, db: Database, user: dict):
+async def change_model_handler(callback: types.CallbackQuery, db: Database):
+    user = await get_user(
+        db,
+        callback.from_user.id,
+        callback.from_user.username,
+        callback.from_user.language_code or "en",
+    )
     model = callback.data.split("_")[1]
     await db.users.update_one(
         {"user_id": callback.from_user.id}, {"$set": {"current_model": model}}
@@ -124,7 +142,13 @@ async def change_model_handler(callback: types.CallbackQuery, db: Database, user
 
 
 @router.callback_query(F.data == "add_balance")
-async def add_balance_callback(callback: types.CallbackQuery, user: dict):
+async def add_balance_callback(callback: types.CallbackQuery, db: Database):
+    user = await get_user(
+        db,
+        callback.from_user.id,
+        callback.from_user.username,
+        callback.from_user.language_code or "en",
+    )
     await send_localized_message(
         callback.message,
         "add_balance",
@@ -134,7 +158,13 @@ async def add_balance_callback(callback: types.CallbackQuery, user: dict):
 
 
 @router.callback_query(F.data == "toggle_image_mode")
-async def toggle_image_mode(callback: types.CallbackQuery, db: Database, user: dict):
+async def toggle_image_mode(callback: types.CallbackQuery, db: Database):
+    user = await get_user(
+        db,
+        callback.from_user.id,
+        callback.from_user.username,
+        callback.from_user.language_code or "en",
+    )
     current_mode = not user.get("image_mode", False)
     await db.users.update_one(
         {"user_id": callback.from_user.id}, {"$set": {"image_mode": current_mode}}
@@ -149,7 +179,13 @@ async def toggle_image_mode(callback: types.CallbackQuery, db: Database, user: d
 
 
 @router.callback_query(F.data == "back_to_start")
-async def back_to_start_callback(callback: types.CallbackQuery, user: dict):
+async def back_to_start_callback(callback: types.CallbackQuery, db: Database):
+    user = await get_user(
+        db,
+        callback.from_user.id,
+        callback.from_user.username,
+        callback.from_user.language_code or "en",
+    )
     await send_localized_message(
         callback.message,
         "back_to_start",
@@ -163,7 +199,14 @@ async def back_to_start_callback(callback: types.CallbackQuery, user: dict):
 
 
 @router.message()
-async def handle_message(message: types.Message, db: Database, user: dict):
+async def handle_message(message: types.Message, db: Database):
+    user = await get_user(
+        db,
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.language_code or "en",
+    )
+
     print(f"Handling message from user {message.from_user.id}: {message.text}")
     print(f"User balance: {user['balance']}, current model: {user['current_model']}")
 
@@ -198,7 +241,7 @@ async def handle_message(message: types.Message, db: Database, user: dict):
                 response = await claude_service.get_response(message.text)
             elif user["current_model"] == TOGETHER_MODEL:
                 response = await together_service.get_response(message.text)
-                print(f"Generated response: {response}")  # Лог для отладки
+                print(f"Generated response: {response}")
             else:
                 await send_message(message, "❌ Неизвестная модель")
                 return
@@ -210,8 +253,7 @@ async def handle_message(message: types.Message, db: Database, user: dict):
             db, message.from_user.id, tokens_cost, model, message.text, response
         )
 
-        # Отправляем ответ пользователю
-        await send_message(message, response)  # Добавлено отправление response
+        await send_message(message, response)
 
     except Exception as e:
         print(f"Error for user {message.from_user.id}: {str(e)}")
