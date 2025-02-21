@@ -9,10 +9,10 @@ router = Router()
 payment_service = PaymentService()
 
 PRICES = {
-    "100": {"tokens": 100, "amount": 5},
-    "500": {"tokens": 500, "amount": 20},
-    "1000": {"tokens": 1000, "amount": 35},
-    "5000": {"tokens": 5000, "amount": 150},
+    "50": {"tokens": 50, "amount": 5},
+    "100": {"tokens": 100, "amount": 10},
+    "150": {"tokens": 150, "amount": 15},
+    "200": {"tokens": 200, "amount": 20},
 }
 
 
