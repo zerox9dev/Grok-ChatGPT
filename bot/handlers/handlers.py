@@ -1,15 +1,22 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from aiogram import F, Router, types
 from aiogram.enums import ChatAction
 from aiogram.filters import Command
 
-from bot.keyboards.keyboards import get_models_keyboard, get_payment_keyboard
+from bot.keyboards.keyboards import get_models_keyboard
 from bot.locales.utils import get_text
 from bot.services.claude import ClaudeService
 from bot.services.gpt import GPTService
 from bot.services.together import TogetherService
-from config import CLAUDE_MODEL, GPT_MODEL, TOGETHER_MODEL
+from config import (
+    CLAUDE_MODEL,
+    DAILY_TOKENS,
+    FREE_TOKENS,
+    GPT_MODEL,
+    PAID_TARIFF_PRICE,
+    TOGETHER_MODEL,
+)
 from database import Database
 
 gpt_service = GPTService()
@@ -69,14 +76,125 @@ async def start_command(message: types.Message, db: Database):
         message.from_user.username,
         message.from_user.language_code or "en",
     )
+
+    # Проверяем реферальную ссылку
+    if len(message.text.split()) > 1:
+        try:
+            inviter_id = int(message.text.split()[1])
+
+            # Проверяем, что это не тот же самый пользователь
+            if inviter_id == user["user_id"]:
+                await message.answer(
+                    "❌ Вы не можете использовать свою собственную реферальную ссылку!"
+                )
+                return
+
+            inviter = await db.users.find_one({"user_id": inviter_id})
+            invited_users = inviter.get("invited_users", []) if inviter else []
+
+            # Проверяем, что этот пользователь еще не был приглашен
+            if message.from_user.id in invited_users:
+                await message.answer("❌ Вы уже были приглашены этим пользователем!")
+                return
+
+            if inviter:
+                # Добавляем в список приглашенных
+                invited_users.append(message.from_user.id)
+
+                # Проверяем, первое ли это приглашение
+                is_first_invite = len(invited_users) == 1
+                is_third_invite = len(invited_users) >= 3
+
+                update_data = {
+                    "invited_users": invited_users,
+                }
+
+                # Начисляем токены только за первое приглашение
+                if is_first_invite:
+                    update_data["balance"] = inviter["balance"] + FREE_TOKENS
+
+                # Даем доступ после третьего приглашения
+                if is_third_invite:
+                    update_data["access_granted"] = True
+
+                await db.users.update_one(
+                    {"user_id": inviter_id}, {"$set": update_data}
+                )
+
+                # Отправляем уведомление инвайтеру
+                notification = f"🎉 У вас новый приглашенный пользователь! ({len(invited_users)}/3)"
+                if is_first_invite:
+                    notification += (
+                        f"\n💰 Вы получили {FREE_TOKENS} токенов за первое приглашение!"
+                    )
+                if is_third_invite:
+                    notification += (
+                        "\n✅ Поздравляем! Вы получили полный доступ к боту!"
+                    )
+
+                await message.bot.send_message(inviter_id, notification)
+
+        except (ValueError, TypeError) as e:
+            print(f"Error processing referral: {str(e)}")
+
+    # Стандартная инициализация нового пользователя
+    if "tariff" not in user:
+        await db.users.update_one(
+            {"user_id": message.from_user.id},
+            {
+                "$set": {
+                    "tariff": "free",
+                    "balance": 0,
+                    "last_daily_reward": None,
+                    "invited_users": [],
+                    "access_granted": False,
+                }
+            },
+        )
+        user["balance"] = 0
+        user["tariff"] = "free"
+
+    # Проверяем доступ
+    if not user.get("access_granted"):
+        await send_localized_message(
+            message=message,
+            key="access_denied",
+            user=user,
+            reply_markup=None,
+        )
+        return
+
     await send_localized_message(
-        message=message,  # указываем message явно
-        key="start",  # ключ сообщения
-        user=user,  # передаем пользователя
-        reply_markup=None,  # явно указываем reply_markup
-        username=user["username"],  # дополнительные данные
+        message=message,
+        key="start",
+        user=user,
+        reply_markup=None,
+        username=user["username"],
         balance=user["balance"],
-        current_model=user["current_model"],
+        current_model=user.get("current_model", "gpt"),
+    )
+
+
+@router.message(Command("invite"))
+async def invite_command(message: types.Message, db: Database):
+    user = await get_user(
+        db,
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.language_code or "en",
+    )
+
+    # Получаем количество приглашенных пользователей
+    invited_count = len(user.get("invited_users", []))
+
+    # Генерируем реферальную ссылку
+    invite_link = f"https://t.me/DockMixAIbot?start={user['user_id']}"
+
+    # Отправляем сообщение с информацией о статусе и ссылкой
+    await message.answer(
+        f"🔗 Ваша реферальная ссылка: {invite_link}\n\n"
+        f"👥 Вы пригласили: {invited_count}/3 пользователей\n\n"
+        f"ℹ️ Пригласите еще {3 - invited_count} пользователей для получения полного доступа"
     )
 
 
@@ -88,11 +206,11 @@ async def help_command(message: types.Message, db: Database):
         message.from_user.language_code or "en",
     )
     await send_localized_message(
-        message=message,  # указываем message явно
-        key="help",  # ключ сообщения
-        user=user,  # передаем пользователя
-        reply_markup=None,  # явно указываем reply_markup
-        username=user["username"],  # дополнительные данные
+        message=message,
+        key="help",
+        user=user,
+        reply_markup=None,
+        username=user["username"],
         balance=user["balance"],
         current_model=user["current_model"],
     )
@@ -124,6 +242,17 @@ async def models_command(message: types.Message, db: Database):
         message.from_user.username,
         message.from_user.language_code or "en",
     )
+
+    # Проверяем доступ
+    if not user.get("access_granted"):
+        await send_localized_message(
+            message=message,
+            key="access_denied",
+            user=user,
+            reply_markup=None,
+        )
+        return
+
     await send_localized_message(
         message,
         "select_model",
@@ -141,6 +270,17 @@ async def change_model_handler(callback: types.CallbackQuery, db: Database):
         callback.from_user.username,
         callback.from_user.language_code or "en",
     )
+
+    # Проверяем доступ
+    if not user.get("access_granted"):
+        await send_localized_message(
+            callback.message,
+            key="access_denied",
+            user=user,
+            reply_markup=None,
+        )
+        return
+
     model = callback.data.split("_")[1]
     await db.users.update_one(
         {"user_id": callback.from_user.id}, {"$set": {"current_model": model}}
@@ -154,22 +294,6 @@ async def change_model_handler(callback: types.CallbackQuery, db: Database):
     )
 
 
-@router.message(Command("add_balance"))
-async def add_balance_command(message: types.Message, db: Database):
-    user = await get_user(
-        db,
-        message.from_user.id,
-        message.from_user.username,
-        message.from_user.language_code or "en",
-    )
-    await send_localized_message(
-        message,
-        "add_balance",
-        user,
-        reply_markup=get_payment_keyboard(user.get("language_code", "en")),
-    )
-
-
 @router.message(Command("image"))
 async def image_command(message: types.Message, db: Database):
     user = await get_user(
@@ -179,6 +303,16 @@ async def image_command(message: types.Message, db: Database):
         message.from_user.language_code or "en",
     )
 
+    # Проверка доступа
+    if not user.get("access_granted"):
+        await send_localized_message(
+            message=message,
+            key="access_denied",
+            user=user,
+            reply_markup=None,
+        )
+        return
+
     # Получаем текст промта из команды
     prompt = message.text.split("/image", 1)[1].strip()
 
@@ -186,7 +320,7 @@ async def image_command(message: types.Message, db: Database):
     if not prompt:
         await send_localized_message(
             message,
-            "image_prompt_required",  # Ключ сообщения
+            "image_prompt_required",
             user,
             reply_markup=None,
         )
@@ -228,48 +362,53 @@ async def handle_message(message: types.Message, db: Database):
         message.from_user.language_code or "en",
     )
 
-    print(f"Handling message from user {message.from_user.id}: {message.text}")
-    print(f"User balance: {user['balance']}, current model: {user['current_model']}")
-
-    # Проверяем баланс пользователя
-    if user["balance"] <= 0 and user["current_model"] != TOGETHER_MODEL:
-        print("User has no tokens.")
-        await send_message(message, "У вас недостаточно токенов.")
+    # Проверяем, есть ли доступ к боту
+    if not user.get("access_granted"):
+        await send_localized_message(
+            message=message,
+            key="access_denied",
+            user=user,
+            reply_markup=None,
+        )
         return
 
-    # Указываем, что бот печатает (для UX)
+    # Проверяем и начисляем ежедневные токены для платного тарифа
+    if user.get("tariff") == "paid":
+        last_reward = user.get("last_daily_reward")
+        if not last_reward or (datetime.now() - last_reward) > timedelta(days=1):
+            await db.users.update_one(
+                {"user_id": message.from_user.id},
+                {
+                    "$inc": {"balance": DAILY_TOKENS},
+                    "$set": {"last_daily_reward": datetime.now()},
+                },
+            )
+            await message.answer(f"🎉 Вам начислено {DAILY_TOKENS} токенов за сегодня!")
+
     await message.bot.send_chat_action(
         chat_id=message.chat.id, action=ChatAction.TYPING
     )
 
     try:
-        print(f"Generating response using model: {user['current_model']}")
-
-        # Выбираем модель для генерации ответа
         if user["current_model"] == GPT_MODEL:
             response = await gpt_service.get_response(message.text)
         elif user["current_model"] == CLAUDE_MODEL:
             response = await claude_service.get_response(message.text)
         elif user["current_model"] == TOGETHER_MODEL:
             response = await together_service.get_response(message.text)
-            print(f"Generated response: {response}")
         else:
             await send_message(message, "❌ Неизвестная модель")
             return
 
-        # Определяем стоимость токенов
+        # Списываем 1 токен (кроме модели TOGETHER_MODEL)
         tokens_cost = 0 if user["current_model"] == TOGETHER_MODEL else 1
         model = user["current_model"]
 
-        # Обновляем баланс и историю пользователя
-        print(f"Updating balance and history for user {message.from_user.id}")
         await update_balance_and_history(
             db, message.from_user.id, tokens_cost, model, message.text, response
         )
 
-        # Отправляем ответ пользователю
         await send_message(message, response)
 
     except Exception as e:
-        print(f"Error for user {message.from_user.id}: {str(e)}")
         await send_message(message, f"Произошла ошибка: {str(e)}")

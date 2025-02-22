@@ -12,7 +12,6 @@ from aiogram.types import TelegramObject, Update
 from aiohttp import ClientSession, web
 
 from bot.handlers.handlers import router  # Основной роутер для команд
-from bot.handlers.payments import router as payments_router
 from config import (
     BOT_TOKEN,
     MONGO_URL,
@@ -22,7 +21,6 @@ from config import (
     WEBHOOK_URL,
 )
 from database import Database
-from webhook import handle_stripe_webhook
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -67,9 +65,7 @@ async def on_startup(bot: Bot):
                 types.BotCommand(command="/start", description="Начало работы"),
                 types.BotCommand(command="/models", description="Выбрать нейросеть"),
                 types.BotCommand(command="/image", description="Генерация изображения"),
-                types.BotCommand(
-                    command="/add_balance", description="Пополнить баланс"
-                ),
+                types.BotCommand(command="/invite", description="Пригласить друзей"),
                 types.BotCommand(command="/profile", description="Профиль"),
                 types.BotCommand(command="/help", description="Помощь"),
             ]
@@ -140,12 +136,10 @@ async def main():
 
     # Регистрируем роутеры
     dp.include_router(router)
-    dp.include_router(payments_router)
 
     # Настраиваем веб-приложение
     app = web.Application()
     app.router.add_post(WEBHOOK_PATH, partial(handle_telegram_webhook, dp=dp, bot=bot))
-    app.router.add_post("/stripe-webhook", handle_stripe_webhook)
 
     # Сохраняем бота и базу данных в контексте приложения
     app["bot"] = bot

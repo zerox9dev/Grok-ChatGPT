@@ -27,6 +27,8 @@ class Database:
                     "created_at": datetime.utcnow(),
                     "messages_history": [],
                     "image_mode": False,
+                    "invited_users": [],  # Список приглашенных пользователей
+                    "access_granted": False,  # Доступ к боту
                 }
             )
 
