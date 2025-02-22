@@ -66,6 +66,7 @@ async def on_startup(bot: Bot):
             [
                 types.BotCommand(command="/start", description="Начало работы"),
                 types.BotCommand(command="/models", description="Выбрать нейросеть"),
+                types.BotCommand(command="/image", description="Генерация изображения"),
                 types.BotCommand(
                     command="/add_balance", description="Пополнить баланс"
                 ),

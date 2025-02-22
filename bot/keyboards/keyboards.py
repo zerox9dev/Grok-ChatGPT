@@ -4,36 +4,6 @@ from bot.locales.utils import get_text
 from config import CLAUDE_MODEL, GPT_MODEL, TOGETHER_MODEL
 
 
-def get_start_keyboard(
-    image_mode: bool = False, language_code: str = "en"
-) -> InlineKeyboardMarkup:
-    buttons = [
-        [
-            InlineKeyboardButton(
-                text=get_text("select_model_button", language_code),
-                callback_data="select_model",
-            ),
-            InlineKeyboardButton(
-                text=get_text(
-                    "toggle_image_mode_off" if image_mode else "toggle_image_mode_on",
-                    language_code,
-                ),
-                callback_data="toggle_image_mode",
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text("add_balance_button", language_code),
-                callback_data="add_balance",
-            ),
-            InlineKeyboardButton(
-                text=get_text("help_button", language_code), callback_data="help"
-            ),
-        ],
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-
 def get_payment_keyboard(language_code: str = "en") -> InlineKeyboardMarkup:
     keyboard = [
         [

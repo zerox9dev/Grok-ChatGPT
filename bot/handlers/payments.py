@@ -1,7 +1,6 @@
 from aiogram import F, Router, types
 from aiogram.filters import Command
 
-from bot.keyboards.keyboards import get_start_keyboard
 from bot.services.payment import PaymentService
 from database import Database
 
@@ -23,7 +22,7 @@ async def process_payment(callback: types.CallbackQuery, db: Database):
     if amount not in PRICES:
         await callback.message.edit_text(
             "❌ Ошибка: неверная сумма оплаты\n\n" "Выберите действие:",
-            reply_markup=get_start_keyboard(),
+            reply_markup=None,
         )
         await callback.answer()
         return
@@ -52,7 +51,7 @@ async def process_payment(callback: types.CallbackQuery, db: Database):
             f"🔗 Ссылка на оплату: {payment_data['payment_url']}\n\n"
             "⏳ После оплаты токены будут начислены автоматически\n\n"
             "Вернуться в меню:",
-            reply_markup=get_start_keyboard(),
+            reply_markup=None,
         )
 
     except Exception as e:
@@ -61,7 +60,7 @@ async def process_payment(callback: types.CallbackQuery, db: Database):
             f"└ {str(e)}\n\n"
             "🔄 Попробуйте позже или обратитесь в поддержку\n\n"
             "Вернуться в меню:",
-            reply_markup=get_start_keyboard(),
+            reply_markup=None,
         )
 
     await callback.answer()
