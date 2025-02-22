@@ -123,6 +123,14 @@ async def shutdown(loop, runner, app):
         logger.error(f"Ошибка при завершении работы: {e}")
 
 
+async def handle_root(request: web.Request):
+    return web.Response(text="Сервер работает")
+
+
+async def handle_ping(request: web.Request):
+    return web.Response(text="pong")
+
+
 async def main():
     # Создаем базу данных
     db = Database(MONGO_URL)
@@ -140,6 +148,8 @@ async def main():
     # Настраиваем веб-приложение
     app = web.Application()
     app.router.add_post(WEBHOOK_PATH, partial(handle_telegram_webhook, dp=dp, bot=bot))
+    app.router.add_get("/", handle_root)  # Роутер для корневого пути
+    app.router.add_get("/ping", handle_ping)  # Роутер для пинг-понга
 
     # Сохраняем бота и базу данных в контексте приложения
     app["bot"] = bot

@@ -13,7 +13,7 @@ texts = {
         "invite_link": "Your invite link: {invite_link}",
         "gpt_button": "GPT",
         "claude_button": "Claude",
-        "free_llama_button": "🎁 FREE LLaMA",
+        "free_llama_button": "LLaMA",
         "image_prompt_required": "Пожалуйста, добавьте текстовый промт для генерации изображения. Например: /image красивый закат над горами.",
     },
     "en": {
@@ -30,7 +30,7 @@ texts = {
         "invite_link": "Your invite link: {invite_link}",
         "gpt_button": "GPT",
         "claude_button": "Claude",
-        "free_llama_button": "🎁 FREE LLaMA",
+        "free_llama_button": "LLaMA",
     },
     "uk": {
         "start": "👋 Привіт, <b>{username}!</b>\n\nЦе бот для роботи з актуальними моделями нейромереж у Telegram.\n\nКоманди:\n/start - перезапуск\n/models - обрати нейромережу\n/profile - профіль користувача\n/add_balance - придбати підписку\n/img - генерація зображень\n/help - допомога\n\nЩоб використовувати нейромережу, просто напишіть текст і надішліть його боту. Він використовуватиме обрану вами модель.",
@@ -45,6 +45,6 @@ texts = {
         "error": "❌ Сталася помилка: {error}",
         "gpt_button": "GPT",
         "claude_button": "Claude",
-        "free_llama_button": "🎁 FREE LLaMA",
+        "free_llama_button": "LLaMA",
     },
 }
