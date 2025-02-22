@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Optional
 
@@ -13,7 +14,8 @@ class Database:
         self.users = self.db.users
 
     async def add_user(
-        self, user_id: int, username: Optional[str], language_code: str) -> None:
+        self, user_id: int, username: Optional[str], language_code: str
+    ) -> None:
         if not await self.users.find_one({"user_id": user_id}):
             await self.users.insert_one(
                 {
@@ -27,3 +29,8 @@ class Database:
                     "image_mode": False,
                 }
             )
+
+    async def close(self):
+        """Закрывает соединение с базой данных."""
+        self.client.close()
+        logging.info("Соединение с базой данных закрыто")

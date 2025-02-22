@@ -1,5 +1,7 @@
 import asyncio
 import logging
+import signal
+import time
 from functools import partial
 from typing import Any, Awaitable, Callable, Dict
 
@@ -7,7 +9,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import TelegramObject, Update
-from aiohttp import web
+from aiohttp import ClientSession, web
 
 from bot.handlers.handlers import router  # Основной роутер для команд
 from bot.handlers.payments import router as payments_router
@@ -27,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 async def handle_telegram_webhook(request: web.Request, dp: Dispatcher, bot: Bot):
+    start_time = time.time()
     try:
         if not request.can_read_body:
             logger.error("Запрос без тела")
@@ -49,6 +52,8 @@ async def handle_telegram_webhook(request: web.Request, dp: Dispatcher, bot: Bot
     except Exception as e:
         logger.error(f"Ошибка обработки вебхука: {e}")
         return web.Response(status=500, text=f"Internal error: {e}")
+    finally:
+        logger.info(f"Обработка запроса заняла {time.time() - start_time:.2f} секунд")
 
 
 async def on_startup(bot: Bot):
@@ -60,14 +65,65 @@ async def on_startup(bot: Bot):
         await bot.set_my_commands(
             [
                 types.BotCommand(command="/start", description="Начало работы"),
+                types.BotCommand(command="/models", description="Выбрать нейросеть"),
                 types.BotCommand(
                     command="/add_balance", description="Пополнить баланс"
                 ),
+                types.BotCommand(command="/profile", description="Профиль"),
+                types.BotCommand(command="/help", description="Помощь"),
             ]
         )
         logger.info("Команды бота успешно зарегистрированы")
     except Exception as e:
         logger.error(f"Ошибка при установке вебхука и регистрации команд: {e}")
+
+
+async def on_shutdown(bot: Bot, db: Database):
+    try:
+        # Удаляем вебхук
+        await bot.delete_webhook()
+        logger.info("Вебхук успешно удален")
+
+        # Закрываем сессию бота
+        if bot.session is not None and not bot.session.closed:
+            await bot.session.close()
+            logger.info("Сессия бота закрыта")
+
+        # Закрываем соединение с базой данных
+        await db.close()
+        logger.info("Соединение с базой данных закрыто")
+
+    except Exception as e:
+        logger.error(f"Ошибка в процессе завершения: {e}")
+    finally:
+        logger.info("Сервисы успешно остановлены")
+
+
+async def shutdown(loop, runner, app):
+    """Gracefully shutdown the application"""
+    bot: Bot = app["bot"]
+    db: Database = app["db"]
+
+    try:
+        # Cancel all running tasks except the current one
+        tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+        for task in tasks:
+            task.cancel()
+
+        # Close bot session before waiting for tasks
+        await on_shutdown(bot, db)
+
+        # Wait for tasks to complete
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Cleanup runner
+        await runner.cleanup()
+
+        # Stop the event loop
+        loop.stop()
+    except Exception as e:
+        logger.error(f"Ошибка при завершении работы: {e}")
 
 
 async def main():
@@ -90,16 +146,38 @@ async def main():
     app.router.add_post(WEBHOOK_PATH, partial(handle_telegram_webhook, dp=dp, bot=bot))
     app.router.add_post("/stripe-webhook", handle_stripe_webhook)
 
+    # Сохраняем бота и базу данных в контексте приложения
+    app["bot"] = bot
+    app["db"] = db
+
+    # Регистрируем обработчики startup и shutdown
     app.on_startup.append(lambda _: on_startup(bot))
+    # Убираем on_shutdown из app, так как мы будем управлять им вручную в shutdown
 
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, WEB_SERVER_HOST, PORT)
     await site.start()
-
     logger.info(f"Сервер запущен на {WEB_SERVER_HOST}:{PORT}")
-    await asyncio.Event().wait()
+
+    # Обработка сигналов завершения
+    loop = asyncio.get_event_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(
+            sig, lambda: asyncio.create_task(shutdown(loop, runner, app))
+        )
+
+    # Держим приложение запущенным
+    try:
+        await asyncio.Event().wait()
+    except asyncio.CancelledError:
+        logger.info("Приложение завершено")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Приложение завершено по запросу пользователя")
+    except Exception as e:
+        logger.error(f"Ошибка в приложении: {e}")

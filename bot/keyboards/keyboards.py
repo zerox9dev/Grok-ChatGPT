@@ -52,12 +52,6 @@ def get_payment_keyboard(language_code: str = "en") -> InlineKeyboardMarkup:
                 text=get_text("pay_200", language_code), callback_data="pay_200"
             ),
         ],
-        [
-            InlineKeyboardButton(
-                text=get_text("back_button", language_code),
-                callback_data="back_to_start",
-            ),
-        ],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -76,12 +70,6 @@ def get_models_keyboard(language_code: str = "en") -> InlineKeyboardMarkup:
             InlineKeyboardButton(
                 text=get_text("free_llama_button", language_code),
                 callback_data=f"model_{TOGETHER_MODEL}",
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                text=get_text("back_button", language_code),
-                callback_data="back_to_start",
             ),
         ],
     ]

@@ -74,50 +74,66 @@ async def start_command(message: types.Message, db: Database):
         message.from_user.language_code or "en",
     )
     await send_localized_message(
-        message,
-        "start",
-        user,
-        reply_markup=get_start_keyboard(
-            user.get("image_mode", False), user.get("language_code", "en")
-        ),
-        username=user["username"],
+        message=message,  # указываем message явно
+        key="start",  # ключ сообщения
+        user=user,  # передаем пользователя
+        reply_markup=None,  # явно указываем reply_markup
+        username=user["username"],  # дополнительные данные
         balance=user["balance"],
         current_model=user["current_model"],
     )
 
 
-@router.callback_query(F.data == "help")
-async def help_callback(callback: types.CallbackQuery, db: Database):
+@router.message(Command("help"))
+async def help_command(message: types.Message, db: Database):
     user = await get_user(
         db,
-        callback.from_user.id,
-        callback.from_user.username,
-        callback.from_user.language_code or "en",
+        message.from_user.id,
+        message.from_user.language_code or "en",
     )
     await send_localized_message(
-        callback.message,
-        "help",
+        message=message,  # указываем message явно
+        key="help",  # ключ сообщения
+        user=user,  # передаем пользователя
+        reply_markup=None,  # явно указываем reply_markup
+        username=user["username"],  # дополнительные данные
+        balance=user["balance"],
+        current_model=user["current_model"],
+    )
+
+
+@router.message(Command("profile"))
+async def profile_command(message: types.Message, db: Database):
+    user = await get_user(
+        db,
+        message.from_user.id,
+        message.from_user.language_code or "en",
+    )
+    await send_localized_message(
+        message,
+        "profile",
         user,
-        reply_markup=get_start_keyboard(
-            user.get("image_mode", False), user.get("language_code", "en")
-        ),
+        user_id=user["user_id"],
+        balance=user["balance"],
+        current_model=user["current_model"],
+        reply_markup=None,
     )
 
 
-@router.callback_query(F.data == "select_model")
-async def select_model_callback(callback: types.CallbackQuery, db: Database):
+@router.message(Command("models"))
+async def models_command(message: types.Message, db: Database):
     user = await get_user(
         db,
-        callback.from_user.id,
-        callback.from_user.username,
-        callback.from_user.language_code or "en",
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.language_code or "en",
     )
     await send_localized_message(
-        callback.message,
+        message,
         "select_model",
         user,
-        reply_markup=get_models_keyboard(user.get("language_code", "en")),
         current_model=user["current_model"],
+        reply_markup=get_models_keyboard(user.get("language_code", "en")),
     )
 
 
@@ -145,16 +161,16 @@ async def change_model_handler(callback: types.CallbackQuery, db: Database):
     )
 
 
-@router.callback_query(F.data == "add_balance")
-async def add_balance_callback(callback: types.CallbackQuery, db: Database):
+@router.message(Command("add_balance"))
+async def add_balance_command(message: types.Message, db: Database):
     user = await get_user(
         db,
-        callback.from_user.id,
-        callback.from_user.username,
-        callback.from_user.language_code or "en",
+        message.from_user.id,
+        message.from_user.username,
+        message.from_user.language_code or "en",
     )
     await send_localized_message(
-        callback.message,
+        message,
         "add_balance",
         user,
         reply_markup=get_payment_keyboard(user.get("language_code", "en")),

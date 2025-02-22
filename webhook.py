@@ -1,9 +1,5 @@
 import stripe
-from aiogram import Bot
 from aiohttp import web
-from motor.motor_asyncio import AsyncIOMotorClient
-
-from config import BOT_TOKEN, MONGO_URL, STRIPE_WEBHOOK_SECRET
 
 
 async def handle_stripe_webhook(request):
@@ -15,9 +11,9 @@ async def handle_stripe_webhook(request):
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
 
-        client = AsyncIOMotorClient(MONGO_URL)
-        db = client.ai_bot
-        bot = Bot(token=BOT_TOKEN)
+        # Получаем доступ к боту и базе данных через контекст приложения
+        bot = request.app["bot"]
+        db = request.app["db"]
 
         if event["type"] == "checkout.session.completed":
             session = event["data"]["object"]
@@ -48,7 +44,6 @@ async def handle_stripe_webhook(request):
                     )
 
         return web.Response(status=200)
-    # В блоке except
     except Exception as e:
         error_message = str(e)
         print(f"Ошибка webhook: {error_message}")
