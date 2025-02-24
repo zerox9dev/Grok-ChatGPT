@@ -278,14 +278,33 @@ async def update_inviter_status(
 async def send_inviter_notification(
     bot, inviter_id: int, invited_count: int, has_reached_goal: bool
 ) -> None:
+    user_manager = await db.get_user_manager()  # Предполагается, что db доступен
+    user = await user_manager.get_user(inviter_id)
+
+    # Формируем сообщение с использованием локализации
     lines = [
-        f"🎉 У вас новый приглашенный пользователь! ({invited_count}/{REQUIRED_INVITES})"
+        await send_localized_message(
+            None,  # message не нужен, так как отправляем напрямую через bot
+            "new_invited_user",
+            user,
+            invited_count=invited_count,
+            required_invites=REQUIRED_INVITES,
+            return_text=True,
+        )
     ]
     if has_reached_goal:
         lines.extend(
             [
-                f"💰 Вы получили {FREE_TOKENS} токенов за приглашение!",
-                "✅ Поздравляем! Вы получили полный доступ к боту!",
+                await send_localized_message(
+                    None,
+                    "tokens_reward",
+                    user,
+                    free_tokens=FREE_TOKENS,
+                    return_text=True,
+                ),
+                await send_localized_message(
+                    None, "access_granted", user, return_text=True
+                ),
             ]
         )
     await bot.send_message(inviter_id, "\n".join(lines))
@@ -348,4 +367,6 @@ async def process_daily_rewards(
                 "$set": {"last_daily_reward": datetime.now()},
             },
         )
-        await message.answer(f"🎉 Вам начислено {DAILY_TOKENS} токенов за сегодня!")
+        await send_localized_message(
+            message, "daily_tokens_reward", user, daily_tokens=DAILY_TOKENS
+        )
