@@ -296,6 +296,18 @@ async def send_inviter_notification(
 async def handle_message(message: types.Message, db: Database, user: dict):
     await process_daily_rewards(message, user, db)
 
+    # Проверяем баланс перед обработкой сообщения
+    tokens_cost = 0 if user["current_model"] == TOGETHER_MODEL else 1
+    if user["balance"] < tokens_cost:
+        next_day = datetime.now() + timedelta(days=1)
+        await send_localized_message(
+            message,
+            "no_tokens",
+            user,
+            next_day=next_day.strftime("%Y-%m-%d"),
+        )
+        return
+
     try:
         await message.bot.send_chat_action(
             chat_id=message.chat.id, action=ChatAction.TYPING
@@ -306,7 +318,6 @@ async def handle_message(message: types.Message, db: Database, user: dict):
             return
 
         response = await service.get_response(message.text)
-        tokens_cost = 0 if user["current_model"] == TOGETHER_MODEL else 1
 
         await db.user_manager.update_balance_and_history(
             message.from_user.id,
