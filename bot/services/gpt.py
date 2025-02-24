@@ -1,3 +1,5 @@
+from typing import Dict, List
+
 from openai import AsyncOpenAI
 
 from config import GPT_MODEL, MAX_TOKENS, OPENAI_API_KEY
@@ -7,11 +9,16 @@ class GPTService:
     def __init__(self):
         self.client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
-    async def get_response(self, message: str) -> str:
+    async def get_response(
+        self, message: str, context: List[Dict[str, str]] = None
+    ) -> str:
         try:
+            if context is None:
+                context = []
+            messages = context + [{"role": "user", "content": message}]
             response = await self.client.chat.completions.create(
                 model=GPT_MODEL,
-                messages=[{"role": "user", "content": message}],
+                messages=messages,
                 max_tokens=MAX_TOKENS,
             )
             return response.choices[0].message.content

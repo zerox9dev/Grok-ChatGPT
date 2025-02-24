@@ -336,14 +336,33 @@ async def handle_message(message: types.Message, db: Database, user: dict):
             await message.answer("❌ Неизвестная модель")
             return
 
-        response = await service.get_response(message.text)
+        # Получаем данные пользователя из базы
+        user_data = await db.users.find_one({"user_id": message.from_user.id})
+        messages_history = user_data.get("messages_history", [])
 
-        await db.user_manager.update_balance_and_history(
-            message.from_user.id,
-            tokens_cost,
-            user["current_model"],
-            message.text,
-            response,
+        # Формируем контекст из последних 5 сообщений
+        context = []
+        for entry in messages_history[-5:]:  # Берем последние 5 записей
+            context.append({"role": "user", "content": entry["message"]})
+            context.append({"role": "assistant", "content": entry["response"]})
+
+        # Вызываем get_response с контекстом
+        response = await service.get_response(message.text, context=context)
+
+        # Обновляем баланс и добавляем новую запись в историю
+        await db.users.update_one(
+            {"user_id": message.from_user.id},
+            {
+                "$inc": {"balance": -tokens_cost},
+                "$push": {
+                    "messages_history": {
+                        "model": user["current_model"],
+                        "message": message.text,
+                        "response": response,
+                        "timestamp": datetime.now(),
+                    }
+                },
+            },
         )
         await message.answer(response)
     except ValueError as ve:
