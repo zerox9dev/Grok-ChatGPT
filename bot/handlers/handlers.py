@@ -21,7 +21,11 @@ MODEL_SERVICES = {
     TOGETHER_MODEL: TogetherService(),
 }
 
-MODEL_NAMES = {GPT_MODEL: "GPT-4", CLAUDE_MODEL: "Claude 3", TOGETHER_MODEL: "Together"}
+MODEL_NAMES = {
+    GPT_MODEL: "GPT-4o",
+    CLAUDE_MODEL: "Claude 3",
+    TOGETHER_MODEL: "DeepSeek V3",
+}
 
 # Константа для требуемого количества приглашений
 REQUIRED_INVITES = 1
@@ -196,7 +200,11 @@ async def change_model_handler(callback: types.CallbackQuery, db: Database):
     await db.users.update_one(
         {"user_id": callback.from_user.id}, {"$set": {"current_model": model}}
     )
-    models = {GPT_MODEL: "GPT-4", CLAUDE_MODEL: "Claude 3", TOGETHER_MODEL: "Together"}
+    models = {
+        GPT_MODEL: "GPT-4o",
+        CLAUDE_MODEL: "Claude 3",
+        TOGETHER_MODEL: "DeepSeek V3",
+    }
     await send_localized_message(
         callback.message,
         "model_changed",
