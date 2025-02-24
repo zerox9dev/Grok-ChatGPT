@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from aiogram import F, Router, types
 from aiogram.enums import ChatAction
 from aiogram.filters import Command
+from aiogram.types import FSInputFile
 
 from bot.keyboards.keyboards import get_models_keyboard
 from bot.locales.utils import get_text
@@ -33,12 +34,17 @@ async def send_localized_message(
     key: str,
     user: dict,
     reply_markup: Optional[types.InlineKeyboardMarkup] = None,
+    return_text: bool = False,  # Добавляем параметр
     **kwargs,
-) -> None:
+) -> Union[str, None]:
     language_code = user.get("language_code", "en")
-    await message.answer(
-        get_text(key, language_code, **kwargs), reply_markup=reply_markup
-    )
+    text = get_text(key, language_code, **kwargs)  # Получаем локализованный текст
+
+    if return_text:
+        return text  # Возвращаем текст, если нужно
+    else:
+        await message.answer(text, reply_markup=reply_markup)  # Отправляем сообщение
+        return None
 
 
 @router.message(Command("invite"))
@@ -70,22 +76,33 @@ async def start_command(message: types.Message, db: Database):
         message.from_user.language_code or "en",
     )
 
+    # Путь к изображению
+    photo = FSInputFile("image/welcome.png")
+
     if not user.get("access_granted"):
         await process_referral(message, user, db)
 
+    # Получаем локализованный текст
     if not user.get("access_granted"):
-        return await send_localized_message(
-            message=message, key="access_denied", user=user
+        caption = await send_localized_message(
+            message=message,
+            key="access_denied",
+            user=user,
+            return_text=True,
+        )
+    else:
+        caption = await send_localized_message(
+            message=message,
+            key="start",
+            user=user,
+            username=user["username"],
+            balance=user["balance"],
+            current_model=user.get("current_model", "gpt"),
+            return_text=True,
         )
 
-    await send_localized_message(
-        message=message,
-        key="start",
-        user=user,
-        username=user["username"],
-        balance=user["balance"],
-        current_model=user.get("current_model", "gpt"),
-    )
+    # Отправляем одно сообщение с фото и текстом
+    await message.answer_photo(photo, caption=caption)
 
 
 @router.message(Command("profile"))
