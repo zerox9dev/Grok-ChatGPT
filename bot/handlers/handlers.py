@@ -78,6 +78,7 @@ async def start_command(message: types.Message, db: Database):
 
     # Путь к изображению
     photo = FSInputFile("image/welcome.png")
+    invite_link = f"https://t.me/DockMixAIbot?start={user['user_id']}"
 
     if not user.get("access_granted"):
         await process_referral(message, user, db)
@@ -87,6 +88,8 @@ async def start_command(message: types.Message, db: Database):
         caption = await send_localized_message(
             message=message,
             key="access_denied",
+            username=user["username"],
+            invite_link=invite_link,
             user=user,
             return_text=True,
         )
