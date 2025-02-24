@@ -93,9 +93,9 @@ async def invite_command(message: types.Message, db: Database):
 
     text = "\n\n".join(
         [
-            f"🔗 Ваша реферальная ссылка: {invite_link}",
-            f"👥 Вы пригласили: {invited_count}/{REQUIRED_INVITES} пользователей",
-            f"ℹ️ {'Пригласите еще ' + str(remaining) + ' пользователя' if remaining else 'Вы уже получили доступ к боту!'}",
+            f"🔗 Ваше реферальне посилання: {invite_link}",
+            f"👥 Ви запросили: {invited_count}/{REQUIRED_INVITES} користувачів",
+            f"ℹ️ {'Запросіть більше ' + str(remaining) + ' користувача' if remaining else 'Ви вже отримали доступ до бота!'}",
         ]
     )
     await message.answer(text)
@@ -199,7 +199,7 @@ async def image_command(message: types.Message, db: Database, user: dict):
         return
 
     if user["balance"] < 5:
-        await message.answer("У вас недостаточно токенов для генерации изображения.")
+        await message.answer("У вас недостатньо токенів для генерації зображення.")
         return
 
     try:
@@ -240,14 +240,14 @@ async def process_referral(message: types.Message, user: dict, db: Database) -> 
         inviter_id = int(message.text.split()[1])
         if inviter_id == user["user_id"]:
             await message.answer(
-                "❌ Вы не можете использовать свою собственную реферальную ссылку!"
+                "❌ Ви не можете використовувати своє власне реферальне посилання!"
             )
             return
 
         inviter = await db.users.find_one({"user_id": inviter_id})
         if not inviter or message.from_user.id in inviter.get("invited_users", []):
             await message.answer(
-                "❌ Вы уже были приглашены этим пользователем!" if inviter else ""
+                "❌ Вас уже було запрошено цим користувачем!" if inviter else ""
             )
             return
 
