@@ -12,6 +12,7 @@ from aiogram.types import TelegramObject, Update
 from aiohttp import ClientSession, web
 
 from bot.handlers.handlers import router  # Основной роутер для команд
+from bot.locales.utils import get_text
 from config import (
     BOT_TOKEN,
     MONGO_URL,
@@ -60,14 +61,35 @@ async def on_startup(bot: Bot):
         await bot.set_webhook(webhook_url)
         logger.info(f"Webhook установлен на {webhook_url}")
 
+        # Предположим, что язык по умолчанию — "ru" (русский), можно сделать его динамическим
+        language_code = "en"  # Это можно взять из конфига или настроек пользователя
+
         await bot.set_my_commands(
             [
-                types.BotCommand(command="/start", description="Начало работы"),
-                types.BotCommand(command="/models", description="Выбрать нейросеть"),
-                types.BotCommand(command="/image", description="Генерация изображения"),
-                types.BotCommand(command="/invite", description="Пригласить друзей"),
-                types.BotCommand(command="/profile", description="Профиль"),
-                types.BotCommand(command="/help", description="Помощь"),
+                types.BotCommand(
+                    command="/start",
+                    description=get_text("start_description", language_code),
+                ),
+                types.BotCommand(
+                    command="/models",
+                    description=get_text("models_description", language_code),
+                ),
+                types.BotCommand(
+                    command="/image",
+                    description=get_text("image_description", language_code),
+                ),
+                types.BotCommand(
+                    command="/invite",
+                    description=get_text("invite_description", language_code),
+                ),
+                types.BotCommand(
+                    command="/profile",
+                    description=get_text("profile_description", language_code),
+                ),
+                types.BotCommand(
+                    command="/help",
+                    description=get_text("help_description", language_code),
+                ),
             ]
         )
         logger.info("Команды бота успешно зарегистрированы")
