@@ -61,8 +61,7 @@ async def on_startup(bot: Bot):
         await bot.set_webhook(webhook_url)
         logger.info(f"Webhook установлен на {webhook_url}")
 
-        # Предположим, что язык по умолчанию — "ru" (русский), можно сделать его динамическим
-        language_code = "en"  # Это можно взять из конфига или настроек пользователя
+        language_code = "uk"  # Это можно взять из конфига или настроек пользователя
 
         await bot.set_my_commands(
             [
