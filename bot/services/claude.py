@@ -16,4 +16,4 @@ class ClaudeService:
             )
             return response.content[0].text
         except Exception as e:
-            return f"Ошибка при получении ответа от Claude: {str(e)}"
+            return f"An error occurred while receiving a reply from Claude: {str(e)}"

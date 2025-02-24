@@ -18,4 +18,4 @@ class GrokService:
             )
             return completion.choices[0].message.content
         except Exception as e:
-            return f"Ошибка при получении ответа от Grok: {str(e)}"
+            return f"An error occurred while receiving a reply from Grok: {str(e)}"
