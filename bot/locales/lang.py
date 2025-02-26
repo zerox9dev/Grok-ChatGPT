@@ -24,6 +24,7 @@ texts = {
         "new_invited_user": "🎉 У вас новый приглашенный пользователь! ({invited_count}/{required_invites})",
         "tokens_reward": "💰 Вы получили {free_tokens} токенов за приглашение!",
         "access_granted": "✅ Поздравляем! Вы получили полный доступ к боту!",
+        "tariff_upgraded": "🎉 Ваш тариф обновлен! Теперь вы будете получать ежедневные токены.",
     },
     "en": {
         "start": "👋 Hello, <b>{username}!</b>\n\nThis is a bot for working with the latest neural network models in Telegram.\n\nCommands:\n/start - restart\n/models - select a neural network\n/profile - user profile\n/image - image generation\n/help - help\n\nTo start using the neural network, simply write a text and send it to the bot. It will use the model you selected.",
@@ -50,6 +51,7 @@ texts = {
         "new_invited_user": "🎉 You have a new invited user! ({invited_count}/{required_invites})",
         "tokens_reward": "💰 You've got {free_tokens} tokens for the invitation!",
         "access_granted": "✅ Congratulations! You have gained full access to the bot!",
+        "tariff_upgraded": "🎉 Your tariff has been upgraded! Now you will receive daily tokens.",
     },
     "uk": {
         "start": "👋 Привіт, <b>{username}!</b>\n\nЦе бот для роботи з актуальними моделями нейромереж у Telegram.\n\nКоманди:\n/start - перезапуск\n/models - обрати нейромережу\n/profile - профіль користувача\n/image - генерація зображень\n/help - допомога\n\nЩоб почати використовувати нейромережу, просто напишіть текст і надішліть його боту. Він використовуватиме обрану вами модель.",
@@ -76,5 +78,6 @@ texts = {
         "new_invited_user": "🎉 У вас з'явився новий запрошений користувач! ({invited_count}/{required_invites})",
         "tokens_reward": "💰 Надано {free_tokens} жетон за запрошення!",
         "access_granted": "✅ Вітаємо! Ви отримали повний доступ до бота!",
+        "tariff_upgraded": "🎉 Ваш тариф обновлений! Тепер ви будете отримувати щоденні токени.",
     },
 }

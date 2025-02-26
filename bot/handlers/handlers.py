@@ -109,6 +109,15 @@ async def start_command(message: types.Message, db: Database):
         message.from_user.username,
         message.from_user.language_code or "en",
     )
+
+    # Проверяем и обновляем тариф для старых пользователей
+    if user.get("access_granted") and user.get("tariff") != "paid":
+        await db.users.update_one(
+            {"user_id": user["user_id"]},
+            {"$set": {"tariff": "paid", "last_daily_reward": datetime.now()}},
+        )
+        user["tariff"] = "paid"  # Обновляем локальный объект user
+
     photo = FSInputFile("image/welcome.png")
     invite_link = f"https://t.me/DockMixAIbot?start={user['user_id']}"
 
@@ -266,8 +275,12 @@ async def update_inviter_status(
     has_reached_goal = len(invited_users) >= REQUIRED_INVITES
     update_data = {"invited_users": invited_users, "access_granted": has_reached_goal}
 
-    if has_reached_goal and len(inviter.get("invited_users", [])) < REQUIRED_INVITES:
+    # Устанавливаем тариф "paid", если цель достигнута и тарифа еще нет
+    if has_reached_goal and inviter.get("tariff") != "paid":
+        update_data["tariff"] = "paid"
         update_data["balance"] = inviter["balance"] + FREE_TOKENS
+        # Устанавливаем last_daily_reward, чтобы токены начали начисляться со следующего дня
+        update_data["last_daily_reward"] = datetime.now()
 
     await db.users.update_one({"user_id": inviter_id}, {"$set": update_data})
     await send_inviter_notification(
@@ -276,15 +289,14 @@ async def update_inviter_status(
 
 
 async def send_inviter_notification(
-    bot, inviter_id: int, invited_count: int, has_reached_goal: bool
+    db: Database, bot, inviter_id: int, invited_count: int, has_reached_goal: bool
 ) -> None:
-    user_manager = await db.get_user_manager()  # Предполагается, что db доступен
+    user_manager = await db.get_user_manager()
     user = await user_manager.get_user(inviter_id)
 
-    # Формируем сообщение с использованием локализации
     lines = [
         await send_localized_message(
-            None,  # message не нужен, так как отправляем напрямую через bot
+            None,
             "new_invited_user",
             user,
             invited_count=invited_count,
@@ -303,7 +315,16 @@ async def send_inviter_notification(
                     return_text=True,
                 ),
                 await send_localized_message(
-                    None, "access_granted", user, return_text=True
+                    None,
+                    "access_granted",
+                    user,
+                    return_text=True,
+                ),
+                await send_localized_message(
+                    None,
+                    "tariff_upgraded",
+                    user,
+                    return_text=True,
                 ),
             ]
         )
