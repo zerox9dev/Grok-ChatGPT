@@ -30,4 +30,4 @@ class TogetherService:
 
         except Exception as e:
             logger.error(f"Ошибка при получении ответа от Together: {str(e)}")
-            return "Сервіс тимчасово не працює"
+            return "Сервіс тимчасово не працює ви можете використовувати інші моделі"
