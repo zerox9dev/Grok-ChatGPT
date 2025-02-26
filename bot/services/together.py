@@ -1,8 +1,13 @@
+import logging
 from typing import Dict, List
 
 from together import Together
 
 from config import MAX_TOKENS, TOGETHER_API_KEY, TOGETHER_MODEL
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class TogetherService:
@@ -24,4 +29,5 @@ class TogetherService:
             return response.choices[0].message.content
 
         except Exception as e:
-            return f"Ошибка при получении ответа от together: {str(e)}"
+            logger.error(f"Ошибка при получении ответа от Together: {str(e)}")
+            return "Сервіс тимчасово не працює"
