@@ -7,6 +7,7 @@ from aiogram.enums import ChatAction
 from aiogram.filters import Command
 from aiogram.types import FSInputFile
 
+from bot.handlers.notifier import send_access_update_notification
 from bot.keyboards.keyboards import get_models_keyboard
 from bot.locales.utils import get_text
 from bot.services.claude import ClaudeService
@@ -37,7 +38,9 @@ MODEL_NAMES = {
     GROK_MODEL: "Grok",
 }
 
-REQUIRED_INVITES = 1
+REQUIRED_CHANNEL = "@Pix2Code"
+YOUR_ADMIN_ID = 1483953251
+REFERRAL_TOKENS = 10
 router = Router()
 
 
@@ -50,12 +53,95 @@ def require_access(func):
             message.from_user.username,
             message.from_user.language_code or "en",
         )
-        if not user.get("access_granted"):
-            await send_localized_message(message, "access_denied", user)
+
+        # Если пользователь уже имеет доступ, пропускаем проверку подписки
+        if user.get("access_granted") == True:
+            return await func(message, db, user=user, *args, **kwargs)
+
+        # Иначе проверяем подписку на канал
+        try:
+            member = await message.bot.get_chat_member(
+                REQUIRED_CHANNEL, message.from_user.id
+            )
+            access_granted = member.status not in ["left", "kicked", "banned"]
+        except Exception as e:
+            print(f"Ошибка при проверке подписки на канал: {str(e)}")
+            access_granted = False
+
+        if not access_granted:
+            await send_localized_message(
+                message, "access_denied_subscription", user, channel=REQUIRED_CHANNEL
+            )
+            # Добавляем инлайн-клавиатуру для присоединения к каналу
+            keyboard = types.InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        types.InlineKeyboardButton(
+                            text=get_text(
+                                "join_channel_button", user.get("language_code", "en")
+                            ),
+                            url=f"https://t.me/{REQUIRED_CHANNEL.replace('@', '')}",
+                        )
+                    ],
+                    [
+                        types.InlineKeyboardButton(
+                            text=get_text(
+                                "check_subscription_button",
+                                user.get("language_code", "en"),
+                            ),
+                            callback_data="check_subscription",
+                        )
+                    ],
+                ]
+            )
+            await message.answer(
+                get_text("join_channel_prompt", user.get("language_code", "en")),
+                reply_markup=keyboard,
+            )
             return
-        return await func(message, db, user=user)
+
+        # Обновляем статус пользователя, если у него есть доступ
+        if not user.get("access_granted"):
+            await db.users.update_one(
+                {"user_id": user["user_id"]},
+                {
+                    "$set": {
+                        "access_granted": True,
+                        "tariff": "paid",
+                        "last_daily_reward": datetime.now(),
+                    }
+                },
+            )
+            user["access_granted"] = True
+            user["tariff"] = "paid"
+
+        return await func(message, db, user=user, *args, **kwargs)
 
     return wrapper
+
+
+async def check_subscription(message: types.Message, user_id: int) -> bool:
+    """Проверяет, подписан ли пользователь на требуемый канал"""
+    try:
+        member = await message.bot.get_chat_member(REQUIRED_CHANNEL, user_id)
+        return member.status not in ["left", "kicked", "banned"]
+    except Exception as e:
+        print(f"Ошибка при проверке подписки: {str(e)}")
+        return False
+
+
+@router.message(Command("send_update_notification"))
+async def admin_send_notification(message: types.Message, db: Database):
+    # Проверка, что это админ (замените на проверку ID вашего админа)
+    if message.from_user.id != YOUR_ADMIN_ID:  # Замените YOUR_ADMIN_ID на ID админа
+        await message.answer("У вас нет прав для выполнения этой команды")
+        return
+
+    # Запускаем рассылку
+    success, failed = await send_access_update_notification(db, message.bot)
+    await message.answer(
+        f"Отправлено уведомлений: {success}, не удалось отправить: {failed}"
+    )
 
 
 async def send_localized_message(
@@ -80,22 +166,16 @@ async def send_localized_message(
 
 
 @router.message(Command("invite"))
-async def invite_command(message: types.Message, db: Database):
-    user_manager = await db.get_user_manager()
-    user = await user_manager.get_user(
-        message.from_user.id,
-        message.from_user.username,
-        message.from_user.language_code or "en",
-    )
+@require_access  # Добавляем этот декоратор для обеспечения подписки
+async def invite_command(message: types.Message, db: Database, user: dict):
     invited_count = len(user.get("invited_users", []))
     invite_link = f"https://t.me/DockMixAIbot?start={user['user_id']}"
-    remaining = max(0, REQUIRED_INVITES - invited_count)
 
     text = "\n\n".join(
         [
-            f"🔗 Ваше реферальне посилання: {invite_link}",
-            f"👥 Ви запросили: {invited_count}/{REQUIRED_INVITES} користувачів",
-            f"ℹ️ {'Запросіть більше ' + str(remaining) + ' користувача' if remaining else 'Ви вже отримали доступ до бота!'}",
+            f"🔗 Ваша реферальная ссылка: {invite_link}",
+            f"👥 Вы пригласили: {invited_count} пользователей",
+            f"🎁 Получайте {REFERRAL_TOKENS} токенов за каждого приглашенного друга!",
         ]
     )
     await message.answer(text)
@@ -110,31 +190,124 @@ async def start_command(message: types.Message, db: Database):
         message.from_user.language_code or "en",
     )
 
-    # Проверяем и обновляем тариф для старых пользователей
-    if user.get("access_granted") and user.get("tariff") != "paid":
-        await db.users.update_one(
-            {"user_id": user["user_id"]},
-            {"$set": {"tariff": "paid", "last_daily_reward": datetime.now()}},
-        )
-        user["tariff"] = "paid"  # Обновляем локальный объект user
-
     photo = FSInputFile("image/welcome.png")
     invite_link = f"https://t.me/DockMixAIbot?start={user['user_id']}"
 
-    if not user.get("access_granted"):
+    # Если у пользователя уже есть доступ, оставляем его без изменений
+    if user.get("access_granted") == True:
+        access_granted = True
+    else:
+        # Иначе проверяем подписку на канал
+        access_granted = await check_subscription(message, message.from_user.id)
+
+    # Обрабатываем реферала независимо от статуса подписки
+    if len(message.text.split()) > 1:
         await process_referral(message, user, db)
 
-    caption_key = "access_denied" if not user.get("access_granted") else "start"
+    # Обновляем статус пользователя, если у него есть доступ по подписке
+    if access_granted and not user.get("access_granted"):
+        await db.users.update_one(
+            {"user_id": user["user_id"]},
+            {
+                "$set": {
+                    "access_granted": True,
+                    "tariff": "paid",
+                    "last_daily_reward": datetime.now(),
+                }
+            },
+        )
+        user["access_granted"] = True
+        user["tariff"] = "paid"
+
+    # Определяем, какой текст показывать
+    caption_key = "access_denied_subscription" if not access_granted else "start"
     caption = await send_localized_message(
         message,
         caption_key,
         user,
-        invite_link=invite_link if not user.get("access_granted") else None,
-        balance=user["balance"] if user.get("access_granted") else None,
+        channel=REQUIRED_CHANNEL if not access_granted else None,
+        invite_link=invite_link,
+        balance=user["balance"] if access_granted else None,
         current_model=user.get("current_model", "gpt"),
         return_text=True,
     )
-    await message.answer_photo(photo, caption=caption)
+
+    # Добавляем кнопку подписки, если не имеет доступа
+    if not access_granted:
+        keyboard = types.InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    types.InlineKeyboardButton(
+                        text=get_text(
+                            "join_channel_button", user.get("language_code", "en")
+                        ),
+                        url=f"https://t.me/{REQUIRED_CHANNEL.replace('@', '')}",
+                    )
+                ],
+                [
+                    types.InlineKeyboardButton(
+                        text=get_text(
+                            "check_subscription_button", user.get("language_code", "en")
+                        ),
+                        callback_data="check_subscription",
+                    )
+                ],
+            ]
+        )
+        await message.answer_photo(photo, caption=caption, reply_markup=keyboard)
+    else:
+        await message.answer_photo(photo, caption=caption)
+
+
+@router.callback_query(F.data == "check_subscription")
+async def check_subscription_callback(callback: types.CallbackQuery, db: Database):
+    user_manager = await db.get_user_manager()
+    user = await user_manager.get_user(
+        callback.from_user.id,
+        callback.from_user.username,
+        callback.from_user.language_code or "en",
+    )
+
+    # Проверяем обновленный статус подписки
+    access_granted = await check_subscription(callback.message, callback.from_user.id)
+
+    if access_granted:
+        # Обновляем статус пользователя
+        if not user.get("access_granted"):
+            await db.users.update_one(
+                {"user_id": user["user_id"]},
+                {
+                    "$set": {
+                        "access_granted": True,
+                        "tariff": "paid",
+                        "last_daily_reward": datetime.now(),
+                    }
+                },
+            )
+
+        await callback.message.edit_caption(
+            caption=await send_localized_message(
+                callback.message, "subscription_confirmed", user, return_text=True
+            ),
+            reply_markup=None,
+        )
+
+        # Отправляем приветственное сообщение
+        welcome_text = await send_localized_message(
+            callback.message,
+            "start",
+            user,
+            balance=user["balance"],
+            current_model=user.get("current_model", "gpt"),
+            return_text=True,
+        )
+        await callback.message.answer(welcome_text)
+    else:
+        # Все еще не подписан
+        await callback.answer(
+            get_text("still_not_subscribed", user.get("language_code", "en")),
+            show_alert=True,
+        )
 
 
 @router.message(Command("profile"))
@@ -248,16 +421,11 @@ async def process_referral(message: types.Message, user: dict, db: Database) -> 
     try:
         inviter_id = int(message.text.split()[1])
         if inviter_id == user["user_id"]:
-            await message.answer(
-                "❌ Ви не можете використовувати своє власне реферальне посилання!"
-            )
+            await message.answer("❌ Ви не можете запросити самого себе!")
             return
 
         inviter = await db.users.find_one({"user_id": inviter_id})
         if not inviter or message.from_user.id in inviter.get("invited_users", []):
-            await message.answer(
-                "❌ Вас уже було запрошено цим користувачем!" if inviter else ""
-            )
             return
 
         await update_inviter_status(
@@ -272,63 +440,31 @@ async def update_inviter_status(
     db: Database, inviter_id: int, inviter: dict, new_user_id: int, bot
 ) -> None:
     invited_users = inviter.get("invited_users", []) + [new_user_id]
-    has_reached_goal = len(invited_users) >= REQUIRED_INVITES
-    update_data = {"invited_users": invited_users, "access_granted": has_reached_goal}
-
-    # Устанавливаем тариф "paid", если цель достигнута и тарифа еще нет
-    if has_reached_goal and inviter.get("tariff") != "paid":
-        update_data["tariff"] = "paid"
-        update_data["balance"] = inviter["balance"] + FREE_TOKENS
-        # Устанавливаем last_daily_reward, чтобы токены начали начисляться со следующего дня
-        update_data["last_daily_reward"] = datetime.now()
-
-    await db.users.update_one({"user_id": inviter_id}, {"$set": update_data})
-    await send_inviter_notification(
-        bot, inviter_id, len(invited_users), has_reached_goal
+    await db.users.update_one(
+        {"user_id": inviter_id},
+        {
+            "$set": {"invited_users": invited_users},
+            "$inc": {"balance": REFERRAL_TOKENS},
+        },
     )
+    await send_inviter_notification(bot, inviter_id, len(invited_users))
 
 
 async def send_inviter_notification(
-    db: Database, bot, inviter_id: int, invited_count: int, has_reached_goal: bool
+    db: Database, bot, inviter_id: int, invited_count: int
 ) -> None:
     user_manager = await db.get_user_manager()
     user = await user_manager.get_user(inviter_id)
 
-    lines = [
-        await send_localized_message(
-            None,
-            "new_invited_user",
-            user,
-            invited_count=invited_count,
-            required_invites=REQUIRED_INVITES,
-            return_text=True,
-        )
-    ]
-    if has_reached_goal:
-        lines.extend(
-            [
-                await send_localized_message(
-                    None,
-                    "tokens_reward",
-                    user,
-                    free_tokens=FREE_TOKENS,
-                    return_text=True,
-                ),
-                await send_localized_message(
-                    None,
-                    "access_granted",
-                    user,
-                    return_text=True,
-                ),
-                await send_localized_message(
-                    None,
-                    "tariff_upgraded",
-                    user,
-                    return_text=True,
-                ),
-            ]
-        )
-    await bot.send_message(inviter_id, "\n".join(lines))
+    text = await send_localized_message(
+        None,
+        "new_invited_user_tokens",
+        user,
+        invited_count=invited_count,
+        referral_tokens=REFERRAL_TOKENS,
+        return_text=True,
+    )
+    await bot.send_message(inviter_id, text)
 
 
 @router.message()
