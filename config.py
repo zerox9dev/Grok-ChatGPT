@@ -7,6 +7,9 @@ from environs import (
 env = Env()  # Создание объекта Env для управления переменными окружения
 env.read_env()  # Чтение переменных из файла .env
 
+
+YOUR_ADMIN_ID = 1483953251
+
 # Конфигурация моделей искусственного интеллекта
 GPT_MODEL = env.str("GPT_MODEL")  # Название или идентификатор модели GPT
 CLAUDE_MODEL = env.str("CLAUDE_MODEL")  # Название или идентификатор модели Claude
@@ -28,6 +31,13 @@ TOGETHER_API_KEY = env.str("TOGETHER_API_KEY")  # Ключ API для досту
 OPENAI_API_KEY = env.str("OPENAI_API_KEY")  # Ключ API для доступа к OpenAI
 ANTHROPIC_API_KEY = env.str("ANTHROPIC_API_KEY")  # Ключ API для доступа к Anthropic
 XAI_API_KEY = env.str("XAI_API_KEY")  # Ключ API для доступа к xAI
+
+MODEL_NAMES = {
+    GPT_MODEL: "GPT-4o",
+    CLAUDE_MODEL: "Claude 3",
+    TOGETHER_MODEL: "DeepSeek V3",
+    GROK_MODEL: "Grok 2",
+}
 
 # Конфигурация бота и базы данных
 BOT_TOKEN = env.str("BOT_TOKEN")  # Токен для авторизации Telegram-бота

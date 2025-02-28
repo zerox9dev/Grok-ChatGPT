@@ -14,7 +14,17 @@ from bot.services.claude import ClaudeService
 from bot.services.gpt import GPTService
 from bot.services.grok import GrokService
 from bot.services.together import TogetherService
-from config import CLAUDE_MODEL, DAILY_TOKENS, GPT_MODEL, GROK_MODEL, TOGETHER_MODEL
+from config import (
+    CLAUDE_MODEL,
+    DAILY_TOKENS,
+    GPT_MODEL,
+    GROK_MODEL,
+    MODEL_NAMES,
+    REFERRAL_TOKENS,
+    REQUIRED_CHANNEL,
+    TOGETHER_MODEL,
+    YOUR_ADMIN_ID,
+)
 from database import Database
 
 MODEL_SERVICES = {
@@ -24,16 +34,7 @@ MODEL_SERVICES = {
     GROK_MODEL: GrokService(),
 }
 
-MODEL_NAMES = {
-    GPT_MODEL: "GPT-4o",
-    CLAUDE_MODEL: "Claude 3",
-    TOGETHER_MODEL: "DeepSeek V3",
-    GROK_MODEL: "Grok",
-}
 
-REQUIRED_CHANNEL = "@Pix2Code"
-YOUR_ADMIN_ID = 1483953251
-REFERRAL_TOKENS = 10
 router = Router()
 
 
