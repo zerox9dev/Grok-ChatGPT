@@ -1,38 +1,52 @@
+# Импорт библиотек
 from environs import (
     Env,
-)  # Импорт библиотеки environs для работы с переменными окружения
+)  # Импорт класса Env из библиотеки environs для работы с переменными окружения
 
-env = Env()  # Создание объекта Env для работы с окружением
+# Инициализация окружения
+env = Env()  # Создание объекта Env для управления переменными окружения
 env.read_env()  # Чтение переменных из файла .env
 
-# Блок конфигурации моделей искусственного интеллекта
-GPT_MODEL = env.str("GPT_MODEL")  # Модель GPT (название или идентификатор)
-CLAUDE_MODEL = env.str("CLAUDE_MODEL")  # Модель Claude
-TOGETHER_MODEL = env.str("TOGETHER_MODEL")  # Модель Together AI
-GROK_MODEL = env.str("GROK_MODEL")  # Модель Grok (xAI)
+# Конфигурация моделей искусственного интеллекта
+GPT_MODEL = env.str("GPT_MODEL")  # Название или идентификатор модели GPT
+CLAUDE_MODEL = env.str("CLAUDE_MODEL")  # Название или идентификатор модели Claude
+TOGETHER_MODEL = env.str(
+    "TOGETHER_MODEL"
+)  # Название или идентификатор модели Together AI
+GROK_MODEL = env.str("GROK_MODEL")  # Название или идентификатор модели Grok (xAI)
 
-# Блок API-ключей для доступа к сервисам ИИ
-TOGETHER_API_KEY = env.str("TOGETHER_API_KEY")  # API-ключ для Together AI
-OPENAI_API_KEY = env.str("OPENAI_API_KEY")  # API-ключ для OpenAI
-ANTHROPIC_API_KEY = env.str("ANTHROPIC_API_KEY")  # API-ключ для Anthropic
-XAI_API_KEY = env.str("XAI_API_KEY")  # API-ключ для xAI
+# Настройки реферальной системы
+REFERRAL_TOKENS = (
+    10  # Количество токенов, начисляемых за приглашение по реферальной ссылке
+)
+REQUIRED_CHANNEL = (
+    "@Pix2Code"  # Обязательный канал для подписки (например, для активации бота)
+)
 
-# Основные настройки бота и базы данных
-BOT_TOKEN = env.str("BOT_TOKEN")  # Токен Telegram-бота
-MONGO_URL = env.str("MONGO_URL")  # URL для подключения к MongoDB
+# API-ключи для сервисов ИИ
+TOGETHER_API_KEY = env.str("TOGETHER_API_KEY")  # Ключ API для доступа к Together AI
+OPENAI_API_KEY = env.str("OPENAI_API_KEY")  # Ключ API для доступа к OpenAI
+ANTHROPIC_API_KEY = env.str("ANTHROPIC_API_KEY")  # Ключ API для доступа к Anthropic
+XAI_API_KEY = env.str("XAI_API_KEY")  # Ключ API для доступа к xAI
+
+# Конфигурация бота и базы данных
+BOT_TOKEN = env.str("BOT_TOKEN")  # Токен для авторизации Telegram-бота
+MONGO_URL = env.str("MONGO_URL")  # URL-адрес для подключения к базе данных MongoDB
 
 # Настройки веб-сервера
-WEB_SERVER_HOST = "0.0.0.0"  # Хост веб-сервера (доступен для всех интерфейсов)
-PORT = env.int("PORT")  # Порт для веб-сервера (берется из переменной окружения)
-WEBHOOK_PATH = "/telegram-webhook"  # Путь для вебхука Telegram
-WEBHOOK_URL = env.str("WEBHOOK_URL")  # Полный URL вебхука
+WEB_SERVER_HOST = "0.0.0.0"  # Хост веб-сервера, доступный для всех сетевых интерфейсов
+PORT = env.int("PORT")  # Порт для запуска веб-сервера, задается в переменной окружения
+WEBHOOK_PATH = "/telegram-webhook"  # Путь для обработки входящих запросов от Telegram
+WEBHOOK_URL = env.str("WEBHOOK_URL")  # Полный URL-адрес вебхука для Telegram
 
-# Настройки генерации изображений
-DALLE_MODEL = "dall-e-3"  # Модель DALL-E для генерации изображений
+# Параметры генерации изображений
+DALLE_MODEL = (
+    "dall-e-3"  # Название модели DALL-E, используемой для генерации изображений
+)
 IMAGE_COST = 5  # Стоимость генерации одного изображения в токенах
 
-# Настройки тарифов и токенов
-FREE_TOKENS = 10  # Количество бесплатных токенов для новых пользователей
-DAILY_TOKENS = 10  # Ежедневное количество токенов для платного тарифа
-PAID_TARIFF_PRICE = 5  # Стоимость платного тарифа (в валюте или единицах)
-MAX_TOKENS = 1000  # Максимальное количество токенов в запросе
+# Тарифы и токены
+FREE_TOKENS = 10  # Количество токенов, предоставляемых бесплатно новым пользователям
+DAILY_TOKENS = 10  # Ежедневное начисление токенов для пользователей с платным тарифом
+PAID_TARIFF_PRICE = 5  # Стоимость подключения платного тарифа (в условных единицах)
+MAX_TOKENS = 1000  # Максимально допустимое количество токенов для одного запроса

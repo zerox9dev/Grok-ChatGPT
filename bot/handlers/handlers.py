@@ -14,14 +14,7 @@ from bot.services.claude import ClaudeService
 from bot.services.gpt import GPTService
 from bot.services.grok import GrokService
 from bot.services.together import TogetherService
-from config import (
-    CLAUDE_MODEL,
-    DAILY_TOKENS,
-    FREE_TOKENS,
-    GPT_MODEL,
-    GROK_MODEL,
-    TOGETHER_MODEL,
-)
+from config import CLAUDE_MODEL, DAILY_TOKENS, GPT_MODEL, GROK_MODEL, TOGETHER_MODEL
 from database import Database
 
 MODEL_SERVICES = {

@@ -1,22 +1,8 @@
-from datetime import datetime, timedelta
-from functools import wraps
-from typing import Dict, Optional, Union
-
-from aiogram import F, Router, types
+from aiogram import types
 
 from bot.locales.utils import get_text
-from config import (
-    CLAUDE_MODEL,
-    DAILY_TOKENS,
-    FREE_TOKENS,
-    GPT_MODEL,
-    GROK_MODEL,
-    TOGETHER_MODEL,
-)
+from config import REFERRAL_TOKENS, REQUIRED_CHANNEL
 from database import Database
-
-REQUIRED_CHANNEL = "@Pix2Code"
-REFERRAL_TOKENS = 10
 
 
 async def send_access_update_notification(db: Database, bot):
