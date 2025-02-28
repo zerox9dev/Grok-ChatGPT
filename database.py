@@ -1,10 +1,10 @@
 import logging
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from config import TOGETHER_MODEL
+from config import GROK_MODEL
 
 
 class UserManager:
@@ -79,10 +79,9 @@ class Database:
                     "username": username,
                     "balance": 0,
                     "language_code": language_code,
-                    "current_model": TOGETHER_MODEL,
+                    "current_model": GROK_MODEL,
                     "created_at": datetime.utcnow(),
                     "messages_history": [],
-                    "image_mode": False,
                     "invited_users": [],
                     "access_granted": False,
                     "tariff": "free",

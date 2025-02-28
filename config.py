@@ -1,37 +1,38 @@
-from environs import Env
+from environs import (
+    Env,
+)  # Импорт библиотеки environs для работы с переменными окружения
 
-env = Env()
-env.read_env()
+env = Env()  # Создание объекта Env для работы с окружением
+env.read_env()  # Чтение переменных из файла .env
 
-# models_ai
-GPT_MODEL = env.str("GPT_MODEL")
-CLAUDE_MODEL = env.str("CLAUDE_MODEL")
-TOGETHER_MODEL = env.str("TOGETHER_MODEL")
-GROK_MODEL = env.str("GROK_MODEL")
+# Блок конфигурации моделей искусственного интеллекта
+GPT_MODEL = env.str("GPT_MODEL")  # Модель GPT (название или идентификатор)
+CLAUDE_MODEL = env.str("CLAUDE_MODEL")  # Модель Claude
+TOGETHER_MODEL = env.str("TOGETHER_MODEL")  # Модель Together AI
+GROK_MODEL = env.str("GROK_MODEL")  # Модель Grok (xAI)
 
+# Блок API-ключей для доступа к сервисам ИИ
+TOGETHER_API_KEY = env.str("TOGETHER_API_KEY")  # API-ключ для Together AI
+OPENAI_API_KEY = env.str("OPENAI_API_KEY")  # API-ключ для OpenAI
+ANTHROPIC_API_KEY = env.str("ANTHROPIC_API_KEY")  # API-ключ для Anthropic
+XAI_API_KEY = env.str("XAI_API_KEY")  # API-ключ для xAI
 
-# AI_KEY
-TOGETHER_API_KEY = env.str("TOGETHER_API_KEY")
-OPENAI_API_KEY = env.str("OPENAI_API_KEY")
-ANTHROPIC_API_KEY = env.str("ANTHROPIC_API_KEY")
-XAI_API_KEY = env.str("XAI_API_KEY")
+# Основные настройки бота и базы данных
+BOT_TOKEN = env.str("BOT_TOKEN")  # Токен Telegram-бота
+MONGO_URL = env.str("MONGO_URL")  # URL для подключения к MongoDB
 
-BOT_TOKEN = env.str("BOT_TOKEN")
-MONGO_URL = env.str("MONGO_URL")
+# Настройки веб-сервера
+WEB_SERVER_HOST = "0.0.0.0"  # Хост веб-сервера (доступен для всех интерфейсов)
+PORT = env.int("PORT")  # Порт для веб-сервера (берется из переменной окружения)
+WEBHOOK_PATH = "/telegram-webhook"  # Путь для вебхука Telegram
+WEBHOOK_URL = env.str("WEBHOOK_URL")  # Полный URL вебхука
 
+# Настройки генерации изображений
+DALLE_MODEL = "dall-e-3"  # Модель DALL-E для генерации изображений
+IMAGE_COST = 5  # Стоимость генерации одного изображения в токенах
 
-WEB_SERVER_HOST = "0.0.0.0"
-PORT = env.int("PORT")
-WEBHOOK_PATH = "/telegram-webhook"
-WEBHOOK_URL = env.str("WEBHOOK_URL")
-
-
-DALLE_MODEL = "dall-e-3"
-IMAGE_COST = 5
-
-
-# Добавьте в начало файла
-FREE_TOKENS = 10  # Количество токенов для бесплатного тарифа
-DAILY_TOKENS = 10  # Количество токенов для платного тарифа ежедневно
-PAID_TARIFF_PRICE = 5  # Стоимость платного тарифа
-MAX_TOKENS = 1000
+# Настройки тарифов и токенов
+FREE_TOKENS = 10  # Количество бесплатных токенов для новых пользователей
+DAILY_TOKENS = 10  # Ежедневное количество токенов для платного тарифа
+PAID_TARIFF_PRICE = 5  # Стоимость платного тарифа (в валюте или единицах)
+MAX_TOKENS = 1000  # Максимальное количество токенов в запросе
