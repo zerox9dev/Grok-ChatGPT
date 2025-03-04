@@ -1,8 +1,9 @@
+import base64
 from typing import Dict, List
 
 from openai import AsyncOpenAI
 
-from config import GPT_MODEL, MAX_TOKENS, OPENAI_API_KEY
+from config import DALLE_MODEL, GPT_MODEL, MAX_TOKENS, OPENAI_API_KEY
 
 
 class GPTService:
@@ -28,7 +29,7 @@ class GPTService:
     async def generate_image(self, prompt: str) -> str:
         try:
             response = await self.client.images.generate(
-                model="dall-e-3",
+                model=DALLE_MODEL,
                 prompt=prompt,
                 size="1024x1024",
                 quality="hd",
@@ -37,3 +38,31 @@ class GPTService:
             return response.data[0].url
         except Exception as e:
             raise Exception(f"Ошибка генерации изображения: {str(e)}")
+
+    async def read_image(self, image_path: str) -> str:
+        try:
+
+            with open(image_path, "rb") as image_file:
+                encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
+
+            response = await self.client.chat.completions.create(
+                model=GPT_MODEL,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "Опиши это изображение:"},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{encoded_image}"
+                                },
+                            },
+                        ],
+                    }
+                ],
+                max_tokens=MAX_TOKENS,
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            return f"Ошибка при обработке изображения: {str(e)}"

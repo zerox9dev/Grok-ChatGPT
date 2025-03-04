@@ -396,26 +396,52 @@ async def handle_message(message: types.Message, db: Database, user: User):
         await message.bot.send_chat_action(
             chat_id=message.chat.id, action=ChatAction.TYPING
         )
+
         service = MODEL_SERVICES.get(user.current_model)
         if not service:
             await message.answer("❌ Неизвестная модель")
             return
 
-        history = user.messages_history[-5:]
-        context = [
-            {
-                "role": "user" if i % 2 == 0 else "assistant",
-                "content": entry["message" if i % 2 == 0 else "response"],
-            }
-            for i, entry in enumerate(history)
-        ]
-        response = await service.get_response(message.text, context=context)
+        # Обработка изображения
+        if message.photo:
+            photo = message.photo[-1]  # Берем фото максимального разрешения
+            file = await message.bot.get_file(photo.file_id)
+            file_path = f"temp_{message.from_user.id}_{photo.file_id}.jpg"
+            await message.bot.download_file(file.file_path, file_path)
+
+            response = await service.read_image(file_path)
+
+            # Удаляем временный файл
+            import os
+
+            os.remove(file_path)
+        else:
+            # Обработка текстового сообщения
+            history = user.messages_history[-5:]
+            context = [
+                {
+                    "role": "user" if i % 2 == 0 else "assistant",
+                    "content": entry["message" if i % 2 == 0 else "response"],
+                }
+                for i, entry in enumerate(history)
+            ]
+            response = await service.get_response(message.text, context=context)
 
         manager = await db.get_user_manager()
-        await manager.update_balance_and_history(
-            user.user_id, tokens_cost, user.current_model, message.text, response
-        )
+
+        # Для обычных сообщений обновляем историю и баланс
+        if not message.photo:
+            await manager.update_balance_and_history(
+                user.user_id, tokens_cost, user.current_model, message.text, response
+            )
+        # Для изображений обновляем баланс без сохранения в историю
+        else:
+            await manager.update_balance_and_history(
+                user.user_id, tokens_cost, user.current_model, "", response
+            )
+
         await message.answer(response)
+
     except Exception as e:
         logger.error(f"Message handling failed: {str(e)}")
         await message.answer(f"Ошибка обработки сообщения: {str(e)}")
