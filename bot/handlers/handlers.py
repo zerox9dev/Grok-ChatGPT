@@ -431,37 +431,41 @@ async def send_inviter_notification(
 @router.message()
 @require_access
 async def handle_message(message: types.Message, db: Database, user: User):
+    # Проверка баланса
     tokens_cost = 0 if user.current_model == TOGETHER_MODEL else 1
     if user.balance < tokens_cost:
         next_day = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
         await send_localized_message(message, "no_tokens", user, next_day=next_day)
         return
 
+    # Отправляем сообщение об ожидании
+    wait_message = await message.answer(
+        "⏳ Ваш запрос обрабатывается, пожалуйста подождите..."
+    )
+
     try:
         await message.bot.send_chat_action(
             chat_id=message.chat.id, action=ChatAction.TYPING
         )
-
         service = MODEL_SERVICES.get(user.current_model)
         if not service:
+            await message.bot.delete_message(message.chat.id, wait_message.message_id)
             await message.answer("❌ Неизвестная модель")
             return
 
-        # Обработка изображения
+        # Обработка сообщения
         if message.photo:
-            photo = message.photo[-1]  # Берем фото максимального разрешения
+            # Обработка фото...
+            photo = message.photo[-1]
             file = await message.bot.get_file(photo.file_id)
             file_path = f"temp_{message.from_user.id}_{photo.file_id}.jpg"
             await message.bot.download_file(file.file_path, file_path)
-
             response = await service.read_image(file_path)
-
-            # Удаляем временный файл
             import os
 
             os.remove(file_path)
         else:
-            # Обработка текстового сообщения
+            # Обработка текста...
             history = user.messages_history[-5:]
             context = [
                 {
@@ -472,28 +476,29 @@ async def handle_message(message: types.Message, db: Database, user: User):
             ]
             response = await service.get_response(message.text, context=context)
 
+        # Обновление баланса
         manager = await db.get_user_manager()
-
-        # Для обычных сообщений обновляем историю и баланс
         if not message.photo:
             await manager.update_balance_and_history(
                 user.user_id, tokens_cost, user.current_model, message.text, response
             )
-        # Для изображений обновляем баланс без сохранения в историю
         else:
             await manager.update_balance_and_history(
                 user.user_id, tokens_cost, user.current_model, "", response
             )
 
-        # Отправка отформатированного ответа
+        # Удаляем сообщение об ожидании
+        await message.bot.delete_message(message.chat.id, wait_message.message_id)
+
+        # Отправка ответа
         try:
             formatted_response = format_to_html(response)
             await message.answer(formatted_response, parse_mode=ParseMode.HTML)
         except Exception as e:
-            # Если ошибка при форматировании, отправляем текст как есть
             await message.answer(response)
             logger.error(f"HTML format error: {str(e)}")
-
     except Exception as e:
+        # Удаляем сообщение об ожидании при ошибке
+        await message.bot.delete_message(message.chat.id, wait_message.message_id)
         logger.error(f"Message handling failed: {str(e)}")
         await message.answer(f"Помилка обробки повідомлення: {str(e)}")
