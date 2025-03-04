@@ -10,9 +10,11 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.types import TelegramObject, Update
 from aiohttp import ClientSession, web
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from bot.handlers.handlers import router  # Основной роутер для команд
 from bot.locales.utils import get_text
+from bot.services.daily_tokens import daily_rewards_task
 from config import (
     BOT_TOKEN,
     MONGO_URL,
@@ -159,6 +161,11 @@ async def main():
     # Создаем бота и диспетчер
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
+
+    # Инициализируем планировщик
+    scheduler = AsyncIOScheduler(timezone="UTC")
+    scheduler.add_job(daily_rewards_task, "cron", hour=0, minute=0, args=(bot, db))
+    scheduler.start()
 
     # Добавляем базу данных в контекст диспетчера
     dp["db"] = db

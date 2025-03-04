@@ -464,7 +464,6 @@ async def send_inviter_notification(
 @router.message()
 @require_access
 async def handle_message(message: types.Message, db: Database, user: dict):
-    await process_daily_rewards(message, user, db)
 
     # Проверяем баланс перед обработкой сообщения
     tokens_cost = 0 if user["current_model"] == TOGETHER_MODEL else 1
@@ -520,23 +519,3 @@ async def handle_message(message: types.Message, db: Database, user: dict):
         await message.answer(f"Ошибка ввода: {str(ve)}")
     except ConnectionError as ce:
         await message.answer(f"Ошибка соединения: {str(ce)}")
-
-
-async def process_daily_rewards(
-    message: types.Message, user: dict, db: Database
-) -> None:
-    if user.get("tariff") != "paid":
-        return
-
-    last_reward = user.get("last_daily_reward")
-    if not last_reward or (datetime.now() - last_reward) > timedelta(days=1):
-        await db.users.update_one(
-            {"user_id": message.from_user.id},
-            {
-                "$inc": {"balance": DAILY_TOKENS},
-                "$set": {"last_daily_reward": datetime.now()},
-            },
-        )
-        await send_localized_message(
-            message, "daily_tokens_reward", user, daily_tokens=DAILY_TOKENS
-        )
