@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import re
@@ -422,12 +423,14 @@ async def audio_command(message: types.Message, db: Database, user: User):
         gpt_service = MODEL_SERVICES[GPT_MODEL]
         output_path = f"audio_{message.from_user.id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.mp3"
 
-        # Меняем на прямой вызов без await перед результатом
         await gpt_service.text_to_speech(text, output_path=output_path)
 
         if os.path.exists(output_path):
             audio = FSInputFile(output_path)
             await message.answer_voice(audio)
+
+            # Дожидаемся завершения отправки, потом удаляем файл
+            await asyncio.sleep(1)
             os.remove(output_path)
 
             manager = await db.get_user_manager()
@@ -436,7 +439,6 @@ async def audio_command(message: types.Message, db: Database, user: User):
             )
         else:
             await message.answer("Помилка: файл аудіо не був створений")
-
     except Exception as e:
         logger.error(f"Audio generation failed: {str(e)}")
         await message.answer(f"Помилка генерації аудіо: {str(e)}")
