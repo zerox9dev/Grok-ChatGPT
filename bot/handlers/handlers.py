@@ -12,8 +12,7 @@ from aiogram.filters import Command
 from aiogram.types import FSInputFile
 
 from bot.database.database import Database, UserManager
-from bot.database.models import User  # Импорт User из models.py
-from bot.handlers.notifier import send_access_update_notification
+from bot.database.models import User
 from bot.keyboards.keyboards import get_models_keyboard
 from bot.locales.utils import get_text
 from bot.services.claude import ClaudeService
@@ -189,14 +188,31 @@ async def send_localized_message(
     return None
 
 
-@router.message(Command("send_update_notification"))
-async def admin_send_notification(message: types.Message, db: Database):
+@router.message(Command("send_all"))
+async def admin_send_all(message: types.Message, command: CommandObject, db: Database):
     if message.from_user.id != YOUR_ADMIN_ID:
         await message.answer("У вас нет прав для выполнения этой команды")
         return
-    success, failed = await send_access_update_notification(db, message.bot)
+
+    if not command.args:
+        await message.answer("Использование: /send_all текст сообщения")
+        return
+
+    text = command.args
+    users = await db.users.find({}).to_list(None)
+    success_count = 0
+    failed_count = 0
+
+    for user in users:
+        try:
+            await message.bot.send_message(user["user_id"], text)
+            success_count += 1
+        except Exception as e:
+            print(f"Ошибка отправки сообщения пользователю {user['user_id']}: {str(e)}")
+            failed_count += 1
+
     await message.answer(
-        f"Отправлено уведомлений: {success}, не удалось отправить: {failed}"
+        f"Отправлено сообщений: {success_count}, не удалось отправить: {failed_count}"
     )
 
 
