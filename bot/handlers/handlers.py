@@ -8,7 +8,7 @@ from typing import Optional, Union
 
 from aiogram import F, Router, types
 from aiogram.enums import ChatAction, ParseMode
-from aiogram.filters import Command
+from aiogram.filters import Command, CommandObject
 from aiogram.types import FSInputFile
 
 from bot.database.database import Database, UserManager
