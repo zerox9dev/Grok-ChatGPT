@@ -440,7 +440,7 @@ async def handle_message(message: types.Message, db: Database, user: User):
 
     # Отправляем сообщение об ожидании
     wait_message = await message.answer(
-        "⏳ Ваш запрос обрабатывается, пожалуйста подождите..."
+        "⏳ Ваш запит обробляється, будь ласка, зачекайте..."
     )
 
     try:
@@ -450,7 +450,9 @@ async def handle_message(message: types.Message, db: Database, user: User):
         service = MODEL_SERVICES.get(user.current_model)
         if not service:
             await message.bot.delete_message(message.chat.id, wait_message.message_id)
-            await message.answer("❌ Неизвестная модель")
+            await message.answer(
+                "❌ Невідома модель, спробуйте вибрати ще раз модель /models"
+            )
             return
 
         # Обработка сообщения
