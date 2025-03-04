@@ -34,7 +34,7 @@ class GrokService:
                 encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
 
             response = await self.client.chat.completions.create(
-                model="grok-2-vision-latest",
+                model="grok-vision-beta",
                 messages=[
                     {
                         "role": "user",

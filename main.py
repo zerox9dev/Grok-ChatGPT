@@ -80,6 +80,10 @@ async def on_startup(bot: Bot):
                     description=get_text("image_description", language_code),
                 ),
                 types.BotCommand(
+                    command="/audio",
+                    description=get_text("audio_description", language_code),
+                ),
+                types.BotCommand(
                     command="/invite",
                     description=get_text("invite_description", language_code),
                 ),

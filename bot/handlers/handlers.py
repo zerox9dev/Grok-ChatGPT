@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 from datetime import datetime, timedelta
 from functools import wraps
@@ -219,9 +220,8 @@ async def start_command(message: types.Message, db: Database):
         message.from_user.username,
         message.from_user.language_code,
     )
-    photo = FSInputFile("image/welcome.png")
-    invite_link = f"https://t.me/DockMixAIbot?start={user.user_id}"
 
+    invite_link = f"https://t.me/DockMixAIbot?start={user.user_id}"
     if len(message.text.split()) > 1:
         await process_referral(message, user, db)
 
@@ -258,10 +258,15 @@ async def start_command(message: types.Message, db: Database):
         return_text=True,
     )
 
+    # Отправляем фото только если у пользователя нет доступа
     reply_markup = (
         None if access_granted else get_subscription_keyboard(user.language_code)
     )
-    await message.answer_photo(photo, caption=caption, reply_markup=reply_markup)
+    if not access_granted:
+        photo = FSInputFile("image/welcome.png")
+        await message.answer_photo(photo, caption=caption, reply_markup=reply_markup)
+    else:
+        await message.answer(caption, reply_markup=reply_markup)
 
 
 @router.callback_query(F.data == "check_subscription")
@@ -394,6 +399,47 @@ async def image_command(message: types.Message, db: Database, user: User):
     except Exception as e:
         logger.error(f"Image generation failed: {str(e)}")
         await message.answer(f"Помилка генерації зображення: {str(e)}")
+
+
+@router.message(Command("audio"))
+@require_access
+async def audio_command(message: types.Message, db: Database, user: User):
+    try:
+        text = message.text.split("/audio", 1)[1].strip()
+    except IndexError:
+        await send_localized_message(message, "audio_prompt_required", user)
+        return
+
+    if user.balance < 5:
+        await message.answer("У вас недостатньо токенів для генерації аудіо.")
+        return
+
+    try:
+        await message.bot.send_chat_action(
+            chat_id=message.chat.id, action=ChatAction.RECORD_VOICE
+        )
+
+        gpt_service = MODEL_SERVICES[GPT_MODEL]
+        output_path = f"audio_{message.from_user.id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.mp3"
+
+        # Меняем на прямой вызов без await перед результатом
+        await gpt_service.text_to_speech(text, output_path=output_path)
+
+        if os.path.exists(output_path):
+            audio = FSInputFile(output_path)
+            await message.answer_voice(audio)
+            os.remove(output_path)
+
+            manager = await db.get_user_manager()
+            await manager.update_balance_and_history(
+                user.user_id, 5, "tts-1", text, "audio_generated"
+            )
+        else:
+            await message.answer("Помилка: файл аудіо не був створений")
+
+    except Exception as e:
+        logger.error(f"Audio generation failed: {str(e)}")
+        await message.answer(f"Помилка генерації аудіо: {str(e)}")
 
 
 async def process_referral(message: types.Message, user: User, db: Database) -> None:

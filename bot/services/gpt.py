@@ -66,3 +66,26 @@ class GPTService:
             return response.choices[0].message.content
         except Exception as e:
             return f"Ошибка при обработке изображения: {str(e)}"
+
+    async def text_to_speech(
+        self, text: str, voice: str = "alloy", output_path: str = "speech.mp3"
+    ) -> str:
+        try:
+            response = await self.client.audio.speech.create(
+                model="tts-1", voice=voice, input=text
+            )
+
+            # Получаем бинарные данные и записываем в файл напрямую
+            binary_content = response.content
+
+            with open(output_path, "wb") as file:
+                file.write(binary_content)
+
+            return output_path
+        except Exception as e:
+            import traceback
+
+            error_traceback = traceback.format_exc()
+            raise Exception(
+                f"Ошибка при преобразовании текста в речь: {str(e)}\n{error_traceback}"
+            )
