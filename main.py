@@ -12,9 +12,10 @@ from aiogram.types import TelegramObject, Update
 from aiohttp import ClientSession, web
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
+from bot.database.database import Database
 from bot.handlers.handlers import router  # Основной роутер для команд
 from bot.locales.utils import get_text
-from bot.services.daily_tokens import daily_rewards_task
+from bot.utils.daily_tokens import daily_rewards_task
 from config import (
     BOT_TOKEN,
     MONGO_URL,
@@ -23,7 +24,6 @@ from config import (
     WEBHOOK_PATH,
     WEBHOOK_URL,
 )
-from database import Database
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

@@ -1,8 +1,8 @@
 from aiogram import types
 
+from bot.database.database import Database
 from bot.locales.utils import get_text
 from config import REFERRAL_TOKENS, REQUIRED_CHANNEL
-from database import Database
 
 
 async def send_access_update_notification(db: Database, bot):

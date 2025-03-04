@@ -1,12 +1,15 @@
+import logging
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Dict, Optional, Union
+from typing import Optional, Union
 
 from aiogram import F, Router, types
 from aiogram.enums import ChatAction
 from aiogram.filters import Command
 from aiogram.types import FSInputFile
 
+from bot.database.database import Database, UserManager
+from bot.database.models import User  # Импорт User из models.py
 from bot.handlers.notifier import send_access_update_notification
 from bot.keyboards.keyboards import get_models_keyboard
 from bot.locales.utils import get_text
@@ -27,7 +30,10 @@ from config import (
     TOGETHER_MODEL,
     YOUR_ADMIN_ID,
 )
-from database import Database
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 MODEL_SERVICES = {
     GPT_MODEL: GPTService(),
@@ -36,141 +42,110 @@ MODEL_SERVICES = {
     GROK_MODEL: GrokService(),
 }
 
-
 router = Router()
+
+
+async def check_subscription(bot, user_id: int) -> bool:
+    try:
+        member = await bot.get_chat_member(REQUIRED_CHANNEL, user_id)
+        return member.status not in ["left", "kicked", "banned"]
+    except Exception as e:
+        logger.error(f"Subscription check failed for user {user_id}: {str(e)}")
+        return False
 
 
 def require_access(func):
     @wraps(func)
     async def wrapper(message: types.Message, db: Database, *args, **kwargs):
-        user_manager = await db.get_user_manager()
-        user = await user_manager.get_user(
+        manager = await db.get_user_manager()
+        user = await manager.get_user(
             message.from_user.id,
             message.from_user.username,
-            message.from_user.language_code or "en",
+            message.from_user.language_code,
         )
 
-        # Если пользователь уже имеет доступ, пропускаем проверку подписки
-        if user.get("access_granted") == True:
-            return await func(message, db, user=user, *args, **kwargs)
-
-        # Иначе проверяем подписку на канал
-        try:
-            member = await message.bot.get_chat_member(
-                REQUIRED_CHANNEL, message.from_user.id
-            )
-            access_granted = member.status not in ["left", "kicked", "banned"]
-        except Exception as e:
-            print(f"Ошибка при проверке подписки на канал: {str(e)}")
-            access_granted = False
-
-        if not access_granted:
-            await send_localized_message(
-                message, "access_denied_subscription", user, channel=REQUIRED_CHANNEL
-            )
-            # Добавляем инлайн-клавиатуру для присоединения к каналу
-            keyboard = types.InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        types.InlineKeyboardButton(
-                            text=get_text(
-                                "join_channel_button", user.get("language_code", "en")
-                            ),
-                            url=f"https://t.me/{REQUIRED_CHANNEL.replace('@', '')}",
-                        )
-                    ],
-                    [
-                        types.InlineKeyboardButton(
-                            text=get_text(
-                                "check_subscription_button",
-                                user.get("language_code", "en"),
-                            ),
-                            callback_data="check_subscription",
-                        )
-                    ],
-                ]
-            )
-            await message.answer(
-                get_text("join_channel_prompt", user.get("language_code", "en")),
-                reply_markup=keyboard,
-            )
-            return
-
-        # Обновляем статус пользователя, если у него есть доступ
-        if not user.get("access_granted"):
-            await db.users.update_one(
-                {"user_id": user["user_id"]},
+        if not user.access_granted:
+            access_granted = await check_subscription(message.bot, user.user_id)
+            if not access_granted:
+                await send_localized_message(
+                    message,
+                    "access_denied_subscription",
+                    user,
+                    channel=REQUIRED_CHANNEL,
+                    reply_markup=get_subscription_keyboard(user.language_code),
+                )
+                return
+            await manager.update_user(
+                user.user_id,
                 {
-                    "$set": {
-                        "access_granted": True,
-                        "tariff": "paid",
-                        "last_daily_reward": datetime.now(),
-                    }
+                    "access_granted": True,
+                    "tariff": "paid",
+                    "last_daily_reward": datetime.now(),
                 },
             )
-            user["access_granted"] = True
-            user["tariff"] = "paid"
+            user.access_granted = True
+            user.tariff = "paid"
 
         return await func(message, db, user=user, *args, **kwargs)
 
     return wrapper
 
 
-async def check_subscription(message: types.Message, user_id: int) -> bool:
-    """Проверяет, подписан ли пользователь на требуемый канал"""
-    try:
-        member = await message.bot.get_chat_member(REQUIRED_CHANNEL, user_id)
-        return member.status not in ["left", "kicked", "banned"]
-    except Exception as e:
-        print(f"Ошибка при проверке подписки: {str(e)}")
-        return False
-
-
-@router.message(Command("send_update_notification"))
-async def admin_send_notification(message: types.Message, db: Database):
-    # Проверка, что это админ (замените на проверку ID вашего админа)
-    if message.from_user.id != YOUR_ADMIN_ID:  # Замените YOUR_ADMIN_ID на ID админа
-        await message.answer("У вас нет прав для выполнения этой команды")
-        return
-
-    # Запускаем рассылку
-    success, failed = await send_access_update_notification(db, message.bot)
-    await message.answer(
-        f"Отправлено уведомлений: {success}, не удалось отправить: {failed}"
+def get_subscription_keyboard(language_code: str) -> types.InlineKeyboardMarkup:
+    return types.InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                types.InlineKeyboardButton(
+                    text=get_text("join_channel_button", language_code),
+                    url=f"https://t.me/{REQUIRED_CHANNEL.replace('@', '')}",
+                )
+            ],
+            [
+                types.InlineKeyboardButton(
+                    text=get_text("check_subscription_button", language_code),
+                    callback_data="check_subscription",
+                )
+            ],
+        ]
     )
 
 
 async def send_localized_message(
     message: types.Message,
     key: str,
-    user: dict,
+    user: User,
     reply_markup: Optional[types.InlineKeyboardMarkup] = None,
     return_text: bool = False,
     **kwargs,
 ) -> Union[str, None]:
-    language_code = user.get("language_code", "en")
-    # Устанавливаем значения по умолчанию для username и invite_link
-    kwargs.setdefault("username", user.get("username", ""))
-    kwargs.setdefault(
-        "invite_link", ""
-    )  # Пустая строка, если invite_link не передан или None
-    text = get_text(key, language_code, **kwargs)
+    kwargs.setdefault("username", user.username or "")
+    kwargs.setdefault("invite_link", "")
+    text = get_text(key, user.language_code, **kwargs)
     if return_text:
         return text
     await message.answer(text, reply_markup=reply_markup)
     return None
 
 
-@router.message(Command("invite"))
-@require_access  # Добавляем этот декоратор для обеспечения подписки
-async def invite_command(message: types.Message, db: Database, user: dict):
-    invited_count = len(user.get("invited_users", []))
-    invite_link = f"https://t.me/DockMixAIbot?start={user['user_id']}"
+@router.message(Command("send_update_notification"))
+async def admin_send_notification(message: types.Message, db: Database):
+    if message.from_user.id != YOUR_ADMIN_ID:
+        await message.answer("У вас нет прав для выполнения этой команды")
+        return
+    success, failed = await send_access_update_notification(db, message.bot)
+    await message.answer(
+        f"Отправлено уведомлений: {success}, не удалось отправить: {failed}"
+    )
 
+
+@router.message(Command("invite"))
+@require_access
+async def invite_command(message: types.Message, db: Database, user: User):
+    invite_link = f"https://t.me/DockMixAIbot?start={user.user_id}"
     text = "\n\n".join(
         [
-            f"🔗 Ваше реферальне посилання: {invite_link}",
-            f"👥 Ви запросили: {invited_count} користувачів",
+            f"🔗 Ваше реферальное посилання: {invite_link}",
+            f"👥 Ви запросили: {len(user.invited_users)} користувачів",
         ]
     )
     await message.answer(text)
@@ -178,205 +153,156 @@ async def invite_command(message: types.Message, db: Database, user: dict):
 
 @router.message(Command("start"))
 async def start_command(message: types.Message, db: Database):
-    user_manager = await db.get_user_manager()
-    user = await user_manager.get_user(
+    manager = await db.get_user_manager()
+    user = await manager.get_user(
         message.from_user.id,
         message.from_user.username,
-        message.from_user.language_code or "en",
+        message.from_user.language_code,
     )
-
     photo = FSInputFile("image/welcome.png")
-    invite_link = f"https://t.me/DockMixAIbot?start={user['user_id']}"
+    invite_link = f"https://t.me/DockMixAIbot?start={user.user_id}"
 
-    # Если у пользователя уже есть доступ, оставляем его без изменений
-    if user.get("access_granted") == True:
-        access_granted = True
-    else:
-        # Иначе проверяем подписку на канал
-        access_granted = await check_subscription(message, message.from_user.id)
-
-    # Обрабатываем реферала независимо от статуса подписки
     if len(message.text.split()) > 1:
         await process_referral(message, user, db)
 
-    # Обновляем статус пользователя, если у него есть доступ по подписке
-    if access_granted and not user.get("access_granted"):
-        await db.users.update_one(
-            {"user_id": user["user_id"]},
+    access_granted = user.access_granted or await check_subscription(
+        message.bot, user.user_id
+    )
+    if access_granted and not user.access_granted:
+        await manager.update_user(
+            user.user_id,
             {
-                "$set": {
-                    "access_granted": True,
-                    "tariff": "paid",
-                    "last_daily_reward": datetime.now(),
-                }
+                "access_granted": True,
+                "tariff": "paid",
+                "last_daily_reward": datetime.now(),
             },
         )
-        user["access_granted"] = True
-        user["tariff"] = "paid"
+        user.access_granted = True
+        user.tariff = "paid"
 
-    # Определяем, какой текст показывать
-    caption_key = "access_denied_subscription" if not access_granted else "start"
+    caption_key = "start" if access_granted else "access_denied_subscription"
     caption = await send_localized_message(
         message,
         caption_key,
         user,
-        channel=REQUIRED_CHANNEL if not access_granted else None,
+        channel=None if access_granted else REQUIRED_CHANNEL,
         invite_link=invite_link,
-        balance=user["balance"] if access_granted else None,
-        current_model=user.get("current_model", "gpt"),
+        balance=user.balance,
+        current_model=user.current_model,
         return_text=True,
     )
 
-    # Добавляем кнопку подписки, если не имеет доступа
-    if not access_granted:
-        keyboard = types.InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    types.InlineKeyboardButton(
-                        text=get_text(
-                            "join_channel_button", user.get("language_code", "en")
-                        ),
-                        url=f"https://t.me/{REQUIRED_CHANNEL.replace('@', '')}",
-                    )
-                ],
-                [
-                    types.InlineKeyboardButton(
-                        text=get_text(
-                            "check_subscription_button", user.get("language_code", "en")
-                        ),
-                        callback_data="check_subscription",
-                    )
-                ],
-            ]
-        )
-        await message.answer_photo(photo, caption=caption, reply_markup=keyboard)
-    else:
-        await message.answer_photo(photo, caption=caption)
+    reply_markup = (
+        None if access_granted else get_subscription_keyboard(user.language_code)
+    )
+    await message.answer_photo(photo, caption=caption, reply_markup=reply_markup)
 
 
 @router.callback_query(F.data == "check_subscription")
 async def check_subscription_callback(callback: types.CallbackQuery, db: Database):
-    user_manager = await db.get_user_manager()
-    user = await user_manager.get_user(
+    manager = await db.get_user_manager()
+    user = await manager.get_user(
         callback.from_user.id,
         callback.from_user.username,
-        callback.from_user.language_code or "en",
+        callback.from_user.language_code,
     )
-
-    # Проверяем обновленный статус подписки
-    access_granted = await check_subscription(callback.message, callback.from_user.id)
+    access_granted = await check_subscription(callback.message.bot, user.user_id)
 
     if access_granted:
-        # Обновляем статус пользователя
-        if not user.get("access_granted"):
-            await db.users.update_one(
-                {"user_id": user["user_id"]},
-                {
-                    "$set": {
-                        "access_granted": True,
-                        "tariff": "paid",
-                        "last_daily_reward": datetime.now(),
-                    }
-                },
-            )
-
+        await manager.update_user(
+            user.user_id,
+            {
+                "access_granted": True,
+                "tariff": "paid",
+                "last_daily_reward": datetime.now(),
+            },
+        )
         await callback.message.edit_caption(
             caption=await send_localized_message(
                 callback.message, "subscription_confirmed", user, return_text=True
             ),
             reply_markup=None,
         )
-
-        # Отправляем приветственное сообщение
         welcome_text = await send_localized_message(
             callback.message,
             "start",
             user,
-            balance=user["balance"],
-            current_model=user.get("current_model", "gpt"),
+            balance=user.balance,
+            current_model=user.current_model,
             return_text=True,
         )
         await callback.message.answer(welcome_text)
     else:
-        # Все еще не подписан
         await callback.answer(
-            get_text("still_not_subscribed", user.get("language_code", "en")),
-            show_alert=True,
+            get_text("still_not_subscribed", user.language_code), show_alert=True
         )
 
 
 @router.message(Command("profile"))
 async def profile_command(message: types.Message, db: Database):
-    user_manager = await db.get_user_manager()
-    user = await user_manager.get_user(
+    manager = await db.get_user_manager()
+    user = await manager.get_user(
         message.from_user.id,
         message.from_user.username,
-        message.from_user.language_code or "en",
+        message.from_user.language_code,
     )
     await send_localized_message(
         message,
         "profile",
         user,
-        user_id=user["user_id"],
-        balance=user["balance"],
-        current_model=user["current_model"],
+        user_id=user.user_id,
+        balance=user.balance,
+        current_model=user.current_model,
     )
 
 
 @router.message(Command("help"))
 async def help_command(message: types.Message, db: Database):
-    user_manager = await db.get_user_manager()
-    user = await user_manager.get_user(
+    manager = await db.get_user_manager()
+    user = await manager.get_user(
         message.from_user.id,
         message.from_user.username,
-        message.from_user.language_code or "en",
+        message.from_user.language_code,
     )
     await send_localized_message(
-        message,
-        "help",
-        user,
-        balance=user["balance"],
-        current_model=user.get("current_model", "gpt"),
+        message, "help", user, balance=user.balance, current_model=user.current_model
     )
 
 
 @router.message(Command("models"))
 @require_access
-async def models_command(message: types.Message, db: Database, user: dict):
+async def models_command(message: types.Message, db: Database, user: User):
     await send_localized_message(
         message,
         "select_model",
         user,
-        current_model=user["current_model"],
-        reply_markup=get_models_keyboard(user.get("language_code", "en")),
+        current_model=user.current_model,
+        reply_markup=get_models_keyboard(user.language_code),
     )
 
 
 @router.callback_query(F.data.startswith("model_"))
 @require_access
-async def change_model_handler(callback: types.CallbackQuery, db: Database, user: dict):
+async def change_model_handler(callback: types.CallbackQuery, db: Database, user: User):
     model = callback.data.split("_")[1]
-    await db.users.update_one(
-        {"user_id": callback.from_user.id}, {"$set": {"current_model": model}}
-    )
+    manager = await db.get_user_manager()
+    await manager.update_user(user.user_id, {"current_model": model})
     await send_localized_message(
-        callback.message,
-        "model_changed",
-        user,
-        model=MODEL_NAMES[model],
+        callback.message, "model_changed", user, model=MODEL_NAMES[model]
     )
 
 
 @router.message(Command("image"))
 @require_access
-async def image_command(message: types.Message, db: Database, user: dict):
-    prompt = message.text.split("/image", 1)[1].strip()
-    if not prompt:
+async def image_command(message: types.Message, db: Database, user: User):
+    try:
+        prompt = message.text.split("/image", 1)[1].strip()
+    except IndexError:
         await send_localized_message(message, "image_prompt_required", user)
         return
 
-    if user["balance"] < 5:
-        await message.answer("У вас недостатньо токенів для генерації зображення.")
+    if user.balance < IMAGE_COST:
+        await message.answer("У вас недостаточно токенов для генерации изображения.")
         return
 
     try:
@@ -387,35 +313,21 @@ async def image_command(message: types.Message, db: Database, user: dict):
         image_url = await gpt_service.generate_image(prompt)
         await message.answer_photo(image_url)
 
-        tokens_cost = IMAGE_COST
-        model = DALLE_MODEL
-        await db.users.update_one(
-            {"user_id": message.from_user.id},
-            {
-                "$inc": {"balance": -tokens_cost},
-                "$push": {
-                    "history": {
-                        "model": model,
-                        "prompt": prompt,
-                        "response": image_url,
-                        "timestamp": datetime.now(),
-                    }
-                },
-            },
+        manager = await db.get_user_manager()
+        await manager.update_balance_and_history(
+            user.user_id, IMAGE_COST, DALLE_MODEL, prompt, image_url
         )
-    except ValueError as ve:
-        await message.answer(f"Ошибка ввода: {str(ve)}")
-    except ConnectionError as ce:
-        await message.answer(f"Ошибка соединения: {str(ce)}")
+    except Exception as e:
+        logger.error(f"Image generation failed: {str(e)}")
+        await message.answer(f"Ошибка генерации изображения: {str(e)}")
 
 
-async def process_referral(message: types.Message, user: dict, db: Database) -> None:
+async def process_referral(message: types.Message, user: User, db: Database) -> None:
     if len(message.text.split()) <= 1:
         return
-
     try:
         inviter_id = int(message.text.split()[1])
-        if inviter_id == user["user_id"]:
+        if inviter_id == user.user_id:
             await message.answer("❌ Ви не можете запросити самого себе!")
             return
 
@@ -423,34 +335,22 @@ async def process_referral(message: types.Message, user: dict, db: Database) -> 
         if not inviter or message.from_user.id in inviter.get("invited_users", []):
             return
 
-        await update_inviter_status(
-            db, inviter_id, inviter, message.from_user.id, message.bot
+        manager = await db.get_user_manager()
+        await manager.add_invited_user(inviter_id, message.from_user.id)
+        await send_inviter_notification(
+            inviter_id, len(inviter.get("invited_users", []) + 1), db, message.bot
         )
-
     except (ValueError, TypeError) as e:
-        print(f"Error processing referral: {str(e)}")
-
-
-async def update_inviter_status(
-    db: Database, inviter_id: int, inviter: dict, new_user_id: int, bot
-) -> None:
-    invited_users = inviter.get("invited_users", []) + [new_user_id]
-    await db.users.update_one(
-        {"user_id": inviter_id},
-        {
-            "$set": {"invited_users": invited_users},
-            "$inc": {"balance": REFERRAL_TOKENS},
-        },
-    )
-    await send_inviter_notification(bot, inviter_id, len(invited_users))
+        logger.error(f"Ошибка обработки реферала: {str(e)}")
 
 
 async def send_inviter_notification(
-    db: Database, bot, inviter_id: int, invited_count: int
+    inviter_id: int, invited_count: int, db: Database, bot
 ) -> None:
-    user_manager = await db.get_user_manager()
-    user = await user_manager.get_user(inviter_id)
-
+    manager = await db.get_user_manager()
+    user = await manager.get_user(
+        inviter_id, None, "en"
+    )  # Username не нужен для уведомления
     text = await send_localized_message(
         None,
         "new_invited_user_tokens",
@@ -464,59 +364,37 @@ async def send_inviter_notification(
 
 @router.message()
 @require_access
-async def handle_message(message: types.Message, db: Database, user: dict):
-
-    # Проверяем баланс перед обработкой сообщения
-    tokens_cost = 0 if user["current_model"] == TOGETHER_MODEL else 1
-    if user["balance"] < tokens_cost:
-        next_day = datetime.now() + timedelta(days=1)
-        await send_localized_message(
-            message,
-            "no_tokens",
-            user,
-            next_day=next_day.strftime("%Y-%m-%d"),
-        )
+async def handle_message(message: types.Message, db: Database, user: User):
+    tokens_cost = 0 if user.current_model == TOGETHER_MODEL else 1
+    if user.balance < tokens_cost:
+        next_day = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        await send_localized_message(message, "no_tokens", user, next_day=next_day)
         return
 
     try:
         await message.bot.send_chat_action(
             chat_id=message.chat.id, action=ChatAction.TYPING
         )
-        service = MODEL_SERVICES.get(user["current_model"])
+        service = MODEL_SERVICES.get(user.current_model)
         if not service:
             await message.answer("❌ Неизвестная модель")
             return
 
-        # Получаем данные пользователя из базы
-        user_data = await db.users.find_one({"user_id": message.from_user.id})
-        messages_history = user_data.get("messages_history", [])
-
-        # Формируем контекст из последних 5 сообщений
-        context = []
-        for entry in messages_history[-5:]:  # Берем последние 5 записей
-            context.append({"role": "user", "content": entry["message"]})
-            context.append({"role": "assistant", "content": entry["response"]})
-
-        # Вызываем get_response с контекстом
+        history = user.messages_history[-5:]
+        context = [
+            {
+                "role": "user" if i % 2 == 0 else "assistant",
+                "content": entry["message" if i % 2 == 0 else "response"],
+            }
+            for i, entry in enumerate(history)
+        ]
         response = await service.get_response(message.text, context=context)
 
-        # Обновляем баланс и добавляем новую запись в историю
-        await db.users.update_one(
-            {"user_id": message.from_user.id},
-            {
-                "$inc": {"balance": -tokens_cost},
-                "$push": {
-                    "messages_history": {
-                        "model": user["current_model"],
-                        "message": message.text,
-                        "response": response,
-                        "timestamp": datetime.now(),
-                    }
-                },
-            },
+        manager = await db.get_user_manager()
+        await manager.update_balance_and_history(
+            user.user_id, tokens_cost, user.current_model, message.text, response
         )
         await message.answer(response)
-    except ValueError as ve:
-        await message.answer(f"Ошибка ввода: {str(ve)}")
-    except ConnectionError as ce:
-        await message.answer(f"Ошибка соединения: {str(ce)}")
+    except Exception as e:
+        logger.error(f"Message handling failed: {str(e)}")
+        await message.answer(f"Ошибка обработки сообщения: {str(e)}")
