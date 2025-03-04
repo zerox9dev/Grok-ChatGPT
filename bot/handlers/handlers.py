@@ -17,8 +17,10 @@ from bot.services.together import TogetherService
 from config import (
     CLAUDE_MODEL,
     DAILY_TOKENS,
+    DALLE_MODEL,
     GPT_MODEL,
     GROK_MODEL,
+    IMAGE_COST,
     MODEL_NAMES,
     REFERRAL_TOKENS,
     REQUIRED_CHANNEL,
@@ -386,8 +388,8 @@ async def image_command(message: types.Message, db: Database, user: dict):
         image_url = await gpt_service.generate_image(prompt)
         await message.answer_photo(image_url)
 
-        tokens_cost = 5
-        model = "dalle-3"
+        tokens_cost = IMAGE_COST
+        model = DALLE_MODEL
         await db.users.update_one(
             {"user_id": message.from_user.id},
             {
