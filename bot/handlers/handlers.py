@@ -1,10 +1,11 @@
 import logging
+import re
 from datetime import datetime, timedelta
 from functools import wraps
 from typing import Optional, Union
 
 from aiogram import F, Router, types
-from aiogram.enums import ChatAction
+from aiogram.enums import ChatAction, ParseMode
 from aiogram.filters import Command
 from aiogram.types import FSInputFile
 
@@ -42,7 +43,51 @@ MODEL_SERVICES = {
     GROK_MODEL: GrokService(),
 }
 
+
 router = Router()
+
+
+def escape_markdown(text):
+    """Экранирует специальные символы MarkdownV2"""
+    chars = [
+        "_",
+        "*",
+        "[",
+        "]",
+        "(",
+        ")",
+        "~",
+        "`",
+        ">",
+        "#",
+        "+",
+        "-",
+        "=",
+        "|",
+        "{",
+        "}",
+        ".",
+        "!",
+    ]
+    for char in chars:
+        text = text.replace(char, f"\\{char}")
+    return text
+
+
+def format_to_html(text):
+    # Заголовки
+    text = re.sub(r"### \*\*(.*?)\*\*", r"<b><u>\1</u></b>", text)
+
+    # Жирный текст
+    text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", text)
+
+    # Курсив
+    text = re.sub(r"\*(.*?)\*", r"<i>\1</i>", text)
+
+    # Разделители - заменяем на строку символов
+    text = text.replace("---", "—————————")
+
+    return text
 
 
 async def check_subscription(bot, user_id: int) -> bool:
@@ -440,8 +485,15 @@ async def handle_message(message: types.Message, db: Database, user: User):
                 user.user_id, tokens_cost, user.current_model, "", response
             )
 
-        await message.answer(response)
+        # Отправка отформатированного ответа
+        try:
+            formatted_response = format_to_html(response)
+            await message.answer(formatted_response, parse_mode=ParseMode.HTML)
+        except Exception as e:
+            # Если ошибка при форматировании, отправляем текст как есть
+            await message.answer(response)
+            logger.error(f"HTML format error: {str(e)}")
 
     except Exception as e:
         logger.error(f"Message handling failed: {str(e)}")
-        await message.answer(f"Ошибка обработки сообщения: {str(e)}")
+        await message.answer(f"Помилка обробки повідомлення: {str(e)}")
