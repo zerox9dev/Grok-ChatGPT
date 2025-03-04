@@ -91,6 +91,10 @@ async def on_startup(bot: Bot):
                     command="/help",
                     description=get_text("help_description", language_code),
                 ),
+                types.BotCommand(
+                    command="/reset",
+                    description=get_text("reset_description", language_code),
+                ),
             ]
         )
         logger.info("Команды бота успешно зарегистрированы")

@@ -21,6 +21,7 @@ texts = {
         "invite_description": "Пригласить друзей",
         "profile_description": "Профиль",
         "help_description": "Помощь",
+        "reset_description": "Сбросить историю",
         "new_invited_user": "🎉 У вас новый приглашенный пользователь! ({invited_count}/{required_invites})",
         "tokens_reward": "💰 Вы получили {free_tokens} токенов за приглашение!",
         "access_granted": "✅ Поздравляем! Вы получили полный доступ к боту!",
@@ -33,6 +34,7 @@ texts = {
         "subscription_confirmed": "Спасибо за подписку! Теперь у вас есть полный доступ к боту.",
         "still_not_subscribed": "Вам все еще нужно подписаться на канал, чтобы использовать бота.",
         "access_system_update": "🎉 Хорошие новости! Я упростил доступ к боту. Теперь вам нужно только подписаться на канал {channel}, чтобы получить полный доступ. Кроме того, вы по-прежнему можете получать до {referral_tokens} токенов ежедневно, приглашая друзей!",
+        "history_reset": "🚮 История сообщений очищена",
     },
     "en": {
         "start": "👋 Hello, <b>{username}!</b>\n\nThis is a bot for working with the latest neural network models in Telegram.\n\nCommands:\n/start - restart\n/models - select a neural network\n/profile - user profile\n/image - image generation\n/help - help\n\nTo start using the neural network, simply write a text and send it to the bot. It will use the model you selected.",
@@ -56,6 +58,7 @@ texts = {
         "invite_description": "Invite friends",
         "profile_description": "Profile",
         "help_description": "Help",
+        "reset_description": "Reset story",
         "new_invited_user": "🎉 You have a new invited user! ({invited_count}/{required_invites})",
         "tokens_reward": "💰 You've got {free_tokens} tokens for the invitation!",
         "access_granted": "✅ Congratulations! You have gained full access to the bot!",
@@ -68,6 +71,7 @@ texts = {
         "subscription_confirmed": "Thank you for subscribing! You now have full access to the bot.",
         "still_not_subscribed": "You still need to subscribe to the channel to use the bot.",
         "access_system_update": "🎉 Good news! We've simplified access to our bot. Now you only need to subscribe to our channel {channel} to get full access. Plus, you can still get up to {referral_tokens} tokens daily by inviting friends!",
+        "history_reset": "Message history is cleared",
     },
     "uk": {
         "start": "👋 Привіт, <b>{username}!</b>\n\nЦе бот для роботи з актуальними моделями нейромереж у Telegram.\n\nКоманди:\n/start - перезапуск\n/models - обрати нейромережу\n/profile - профіль користувача\n/image - генерація зображень\n/help - допомога\n\nЩоб почати використовувати нейромережу, просто напишіть текст і надішліть його боту. Він використовуватиме обрану вами модель.",
@@ -91,6 +95,7 @@ texts = {
         "invite_description": "Запросити друзів",
         "profile_description": "Профіль",
         "help_description": "Допомога",
+        "reset_description": "Скинути історію",
         "new_invited_user": "🎉 У вас з'явився новий запрошений користувач! ({invited_count}/{required_invites})",
         "tokens_reward": "💰 Надано {free_tokens} жетон за запрошення!",
         "access_granted": "✅ Вітаємо! Ви отримали повний доступ до бота!",
@@ -103,5 +108,6 @@ texts = {
         "subscription_confirmed": "Дякуємо за підписку! Тепер у вас є повний доступ до бота.",
         "still_not_subscribed": "Вам все ще потрібно підписатися на канал, щоб користуватися ботом.",
         "access_system_update": "🎉 Гарні новини! Я спростив доступ до боту. Тепер вам потрібно лише підписатися на канал {channel}, щоб отримати повний доступ. Крім того, ви як і раніше можете отримувати {referral_tokens}+ токенів щодня, запрошуючи друзів!",
+        "history_reset": "Історія повідомлень очищена",
     },
 }

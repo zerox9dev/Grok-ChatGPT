@@ -335,6 +335,14 @@ async def help_command(message: types.Message, db: Database):
     )
 
 
+@router.message(Command("reset"))
+@require_access
+async def reset_command(message: types.Message, db: Database, user: User):
+    manager = await db.get_user_manager()
+    await manager.update_user(user.user_id, {"messages_history": []})
+    await send_localized_message(message, "history_reset", user)
+
+
 @router.message(Command("models"))
 @require_access
 async def models_command(message: types.Message, db: Database, user: User):
