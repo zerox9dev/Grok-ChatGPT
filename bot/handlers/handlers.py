@@ -64,17 +64,31 @@ def require_access(func):
             message.from_user.language_code,
         )
 
-        if not user.access_granted:
-            access_granted = await check_subscription(message.bot, user.user_id)
-            if not access_granted:
-                await send_localized_message(
-                    message,
-                    "access_denied_subscription",
-                    user,
-                    channel=REQUIRED_CHANNEL,
-                    reply_markup=get_subscription_keyboard(user.language_code),
+        # Проверяем подписку независимо от текущего access_granted
+        access_granted = await check_subscription(message.bot, user.user_id)
+
+        if not access_granted:
+            # Если не подписан, отправляем сообщение и прерываем выполнение
+            await send_localized_message(
+                message,
+                "access_denied_subscription",
+                user,
+                channel=REQUIRED_CHANNEL,
+                reply_markup=get_subscription_keyboard(user.language_code),
+            )
+            # Если access_granted был True, сбрасываем его в False
+            if user.access_granted:
+                await manager.update_user(
+                    user.user_id,
+                    {
+                        "access_granted": False,
+                        "tariff": "free",
+                    },  # Сбрасываем тариф и доступ
                 )
-                return
+            return
+
+        # Если подписан, но access_granted был False, обновляем
+        if not user.access_granted:
             await manager.update_user(
                 user.user_id,
                 {
@@ -86,6 +100,7 @@ def require_access(func):
             user.access_granted = True
             user.tariff = "paid"
 
+        # Выполняем основную функцию
         return await func(message, db, user=user, *args, **kwargs)
 
     return wrapper
@@ -165,9 +180,8 @@ async def start_command(message: types.Message, db: Database):
     if len(message.text.split()) > 1:
         await process_referral(message, user, db)
 
-    access_granted = user.access_granted or await check_subscription(
-        message.bot, user.user_id
-    )
+    # Проверяем подписку всегда
+    access_granted = await check_subscription(message.bot, user.user_id)
     if access_granted and not user.access_granted:
         await manager.update_user(
             user.user_id,
@@ -179,6 +193,13 @@ async def start_command(message: types.Message, db: Database):
         )
         user.access_granted = True
         user.tariff = "paid"
+    elif not access_granted and user.access_granted:
+        await manager.update_user(
+            user.user_id,
+            {"access_granted": False, "tariff": "free"},
+        )
+        user.access_granted = False
+        user.tariff = "free"
 
     caption_key = "start" if access_granted else "access_denied_subscription"
     caption = await send_localized_message(
@@ -302,7 +323,7 @@ async def image_command(message: types.Message, db: Database, user: User):
         return
 
     if user.balance < IMAGE_COST:
-        await message.answer("У вас недостаточно токенов для генерации изображения.")
+        await message.answer("У вас недостатньо токенів для генерації зображення.")
         return
 
     try:
@@ -319,7 +340,7 @@ async def image_command(message: types.Message, db: Database, user: User):
         )
     except Exception as e:
         logger.error(f"Image generation failed: {str(e)}")
-        await message.answer(f"Ошибка генерации изображения: {str(e)}")
+        await message.answer(f"Помилка генерації зображення: {str(e)}")
 
 
 async def process_referral(message: types.Message, user: User, db: Database) -> None:
@@ -341,7 +362,7 @@ async def process_referral(message: types.Message, user: User, db: Database) -> 
             inviter_id, len(inviter.get("invited_users", []) + 1), db, message.bot
         )
     except (ValueError, TypeError) as e:
-        logger.error(f"Ошибка обработки реферала: {str(e)}")
+        logger.error(f"Помилка обробки реферала: {str(e)}")
 
 
 async def send_inviter_notification(
