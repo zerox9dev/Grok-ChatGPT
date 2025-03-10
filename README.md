@@ -1,4 +1,5 @@
 # AIHelper Bot
+![AIHelper Bot Overview](image/overview.jpg)
 
 My Telegram bot providing access to modern AI models (GPT-4O, Claude 3, Grok) directly in your messenger. Created for convenient work with neural networks without unnecessary complications.
 
