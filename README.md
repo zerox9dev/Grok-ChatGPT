@@ -1,11 +1,11 @@
 # AIHelper Bot
 ![AIHelper Bot Overview](image/overview.jpg)
 
-My Telegram bot providing access to modern AI models (GPT-4O, Claude 3, Grok) directly in your messenger. Created for convenient work with neural networks without unnecessary complications.
+My Telegram bot providing access to modern AI models (GPT-4O, Grok) directly in your messenger. Created for convenient work with neural networks without unnecessary complications.
 
 ## Features
 
-- **Multiple AI Models**: support for GPT-4O, Claude 3, Grok 2, and DeepSeek V3
+- **Multiple AI Models**: support for GPT-4O and Grok 2
 - **Content Generation**:
   - Text responses with context memory
   - Image creation through DALL-E 3
@@ -42,15 +42,11 @@ python main.py
 ```env
 # API Keys for models
 OPENAI_API_KEY=sk-your_openai_key
-ANTHROPIC_API_KEY=sk-your_anthropic_key
 XAI_API_KEY=your_xai_key
-TOGETHER_API_KEY=your_together_key
 
 # Model settings
 GPT_MODEL=gpt-4o
-CLAUDE_MODEL=claude-3-opus-20240229
 GROK_MODEL=grok-2
-TOGETHER_MODEL=DeepSeek-Coder-V3-Instruct
 
 # Telegram and MongoDB settings
 BOT_TOKEN=your_telegram_bot_token
@@ -79,9 +75,7 @@ The bot is built on a modern technology stack:
 - **aiogram 3.x** - for interacting with Telegram API
 - **MongoDB** (motor) - asynchronous database operations
 - **OpenAI API** - for access to GPT-4O and DALL-E 3
-- **Anthropic API** - for working with Claude 3
 - **X.AI API** - for integration with Grok
-- **Together AI** - for using DeepSeek Coder V3
 - **APScheduler** - for executing scheduled tasks
 
 ## Project Structure

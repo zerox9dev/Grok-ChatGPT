@@ -15,12 +15,9 @@ from bot.database.database import Database, UserManager
 from bot.database.models import User
 from bot.keyboards.keyboards import get_models_keyboard
 from bot.locales.utils import get_text
-from bot.services.claude import ClaudeService
 from bot.services.gpt import GPTService
 from bot.services.grok import GrokService
-from bot.services.together import TogetherService
 from config import (
-    CLAUDE_MODEL,
     DAILY_TOKENS,
     DALLE_MODEL,
     GPT_MODEL,
@@ -29,7 +26,6 @@ from config import (
     MODEL_NAMES,
     REFERRAL_TOKENS,
     REQUIRED_CHANNEL,
-    TOGETHER_MODEL,
     YOUR_ADMIN_ID,
 )
 
@@ -39,8 +35,6 @@ logger = logging.getLogger(__name__)
 
 MODEL_SERVICES = {
     GPT_MODEL: GPTService(),
-    CLAUDE_MODEL: ClaudeService(),
-    TOGETHER_MODEL: TogetherService(),
     GROK_MODEL: GrokService(),
 }
 
@@ -504,7 +498,7 @@ async def send_inviter_notification(
 @require_access
 async def handle_message(message: types.Message, db: Database, user: User):
     # Проверка баланса
-    tokens_cost = 0 if user.current_model == TOGETHER_MODEL else 1
+    tokens_cost = 0 if user.current_model == "tts-1" else 1
     if user.balance < tokens_cost:
         next_day = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
         await send_localized_message(message, "no_tokens", user, next_day=next_day)

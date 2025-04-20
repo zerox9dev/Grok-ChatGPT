@@ -2,7 +2,5 @@ aiogram
 motor
 environs
 openai
-together
-anthropic
 stripe
 apscheduler

@@ -20,7 +20,7 @@ class GPTService:
             response = await self.client.chat.completions.create(
                 model=GPT_MODEL,
                 messages=messages,
-                max_tokens=MAX_TOKENS,
+                max_completion_tokens=MAX_TOKENS,
             )
             return response.choices[0].message.content
         except Exception as e:
@@ -61,7 +61,7 @@ class GPTService:
                         ],
                     }
                 ],
-                max_tokens=MAX_TOKENS,
+                max_completion_tokens=MAX_TOKENS,
             )
             return response.choices[0].message.content
         except Exception as e:
