@@ -36,7 +36,7 @@ MODEL_NAMES = {
     GPT_MODEL: "GPT-4o",
     CLAUDE_MODEL: "Claude 3",
     TOGETHER_MODEL: "DeepSeek V3",
-    GROK_MODEL: "Grok 2",
+    GROK_MODEL: "Grok 3",
 }
 
 # Конфигурация бота и базы данных
