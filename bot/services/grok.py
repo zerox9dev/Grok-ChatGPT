@@ -27,6 +27,21 @@ class GrokService:
         except Exception as e:
             return f"An error occurred while receiving a reply from Grok: {str(e)}"
 
+    async def generate_image(self, prompt: str, n: int = 1) -> str:
+        """
+        Генерирует изображение с помощью Grok API
+        """
+        try:
+            response = await self.client.images.generate(
+                model="grok-2-image",
+                prompt=prompt,
+                response_format="url",
+                n=n,
+            )
+            return response.data[0].url
+        except Exception as e:
+            raise Exception(f"Ошибка генерации изображения Grok: {str(e)}")
+
     async def read_image(self, image_path: str) -> str:
         try:
 

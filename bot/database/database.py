@@ -102,6 +102,7 @@ class Database:
                     "balance": 0,
                     "language_code": language_code,
                     "current_model": GROK_MODEL,
+                    "image_model": "gpt",  # Default image model is GPT (DALL-E)
                     "created_at": datetime.utcnow(),
                     "messages_history": [],
                     "invited_users": [],

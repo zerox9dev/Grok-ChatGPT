@@ -18,3 +18,22 @@ def get_models_keyboard(language_code: str = "en") -> InlineKeyboardMarkup:
         ],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+def get_image_models_keyboard(language_code: str = "en") -> InlineKeyboardMarkup:
+    """
+    Создает клавиатуру для выбора модели генерации изображений
+    """
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text=get_text("dalle_button", language_code),
+                callback_data="img_model_gpt",
+            ),
+            InlineKeyboardButton(
+                text=get_text("grok_image_button", language_code),
+                callback_data="img_model_grok",
+            ),
+        ],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)

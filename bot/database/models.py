@@ -12,6 +12,7 @@ class User:
     tariff: str
     balance: int
     current_model: str
+    image_model: str
     invited_users: List[int]
     messages_history: List[Dict]
     created_at: datetime
@@ -27,6 +28,7 @@ class User:
             tariff=data["tariff"],
             balance=data["balance"],
             current_model=data["current_model"],
+            image_model=data.get("image_model", "gpt"),
             invited_users=data["invited_users"],
             messages_history=data["messages_history"],
             created_at=data["created_at"],
