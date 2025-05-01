@@ -13,6 +13,7 @@ YOUR_ADMIN_ID = 1483953251
 # Конфигурация моделей искусственного интеллекта
 GPT_MODEL = env.str("GPT_MODEL")  # Название или идентификатор модели GPT
 GROK_MODEL = env.str("GROK_MODEL")  # Название или идентификатор модели Grok (xAI)
+CLAUDE_MODEL = env.str("CLAUDE_MODEL", "claude-3-7-sonnet-20250219")  # Название или идентификатор модели Claude
 
 # Настройки реферальной системы
 REFERRAL_TOKENS = (
@@ -25,10 +26,12 @@ REQUIRED_CHANNEL = (
 # API-ключи для сервисов ИИ
 OPENAI_API_KEY = env.str("OPENAI_API_KEY")  # Ключ API для доступа к OpenAI
 XAI_API_KEY = env.str("XAI_API_KEY")  # Ключ API для доступа к xAI
+ANTHROPIC_API_KEY = env.str("ANTHROPIC_API_KEY")  # Ключ API для доступа к Anthropic
 
 MODEL_NAMES = {
     GPT_MODEL: "GPT-o4-mini",
     GROK_MODEL: "Grok 3",
+    CLAUDE_MODEL: "Claude 3 Sonnet",
 }
 
 # Конфигурация бота и базы данных

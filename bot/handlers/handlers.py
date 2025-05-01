@@ -17,11 +17,13 @@ from bot.keyboards.keyboards import get_image_models_keyboard, get_models_keyboa
 from bot.locales.utils import get_text
 from bot.services.gpt import GPTService
 from bot.services.grok import GrokService
+from bot.services.claude import ClaudeService
 from config import (
     DAILY_TOKENS,
     DALLE_MODEL,
     GPT_MODEL,
     GROK_MODEL,
+    CLAUDE_MODEL,
     IMAGE_COST,
     IMAGE_MODELS,
     MODEL_NAMES,
@@ -37,6 +39,7 @@ logger = logging.getLogger(__name__)
 MODEL_SERVICES = {
     GPT_MODEL: GPTService(),
     GROK_MODEL: GrokService(),
+    CLAUDE_MODEL: ClaudeService(),
 }
 
 

@@ -4,3 +4,4 @@ environs
 openai
 stripe
 apscheduler
+anthropic
