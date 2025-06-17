@@ -30,9 +30,9 @@ XAI_API_KEY = env.str("XAI_API_KEY")  # Ключ API для доступа к xA
 ANTHROPIC_API_KEY = env.str("ANTHROPIC_API_KEY")  # Ключ API для доступа к Anthropic
 
 MODEL_NAMES = {
-    GPT_MODEL: "GPT-o4-mini",
+    GPT_MODEL: "GPT o3",
     GROK_MODEL: "Grok 3",
-    CLAUDE_MODEL: "Claude 3 Sonnet",
+    CLAUDE_MODEL: "Claude 4",
 }
 
 # Конфигурация бота и базы данных
