@@ -90,14 +90,24 @@ def format_to_html(text):
 
 
 async def check_subscription(bot, user_id: int) -> bool:
+    """
+    Checks if user is subscribed to all required channels.
+    Returns True only if subscribed to ALL channels.
+    """
     try:
-        # Remove '@' from the beginning if it exists
-        channel_id = REQUIRED_CHANNELS
-        if channel_id.startswith('@'):
-            channel_id = channel_id[1:]
-            
-        member = await bot.get_chat_member('@' + channel_id, user_id)
-        return member.status not in ["left", "kicked", "banned"]
+        for channel in REQUIRED_CHANNELS:
+            # Remove '@' from the beginning if it exists for API call
+            channel_id = channel
+            if channel_id.startswith('@'):
+                channel_id = channel_id[1:]
+                
+            member = await bot.get_chat_member('@' + channel_id, user_id)
+            if member.status in ["left", "kicked", "banned"]:
+                # If not subscribed to any channel, return False immediately
+                return False
+                
+        # If we get here, user is subscribed to all channels
+        return True
     except Exception as e:
         logger.error(f"Subscription check failed for user {user_id}: {str(e)}")
         # Return False on any error to be safe
@@ -119,15 +129,14 @@ def require_access(func):
 
         if not access_granted:
             # Если не подписан, отправляем сообщение и прерываем выполнение
-            channel_name = REQUIRED_CHANNELS
-            if not channel_name.startswith('@'):
-                channel_name = '@' + channel_name
+            # Format channels for display, e.g. "@Channel1, @Channel2"
+            channels_formatted = ", ".join(REQUIRED_CHANNELS)
                 
             await send_localized_message(
                 message,
                 "access_denied_subscription",
                 user,
-                channel=channel_name,
+                channels=channels_formatted,
                 reply_markup=get_subscription_keyboard(user.language_code),
             )
             # Если access_granted был True, сбрасываем его в False
@@ -161,27 +170,32 @@ def require_access(func):
 
 
 def get_subscription_keyboard(language_code: str) -> types.InlineKeyboardMarkup:
-    # Format the channel name correctly for the URL
-    channel_name = REQUIRED_CHANNELS
-    if channel_name.startswith('@'):
-        channel_name = channel_name[1:]  # Remove '@' for URL
-        
-    return types.InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                types.InlineKeyboardButton(
-                    text=get_text("join_channel_button", language_code),
-                    url=f"https://t.me/{channel_name}",
-                )
-            ],
-            [
-                types.InlineKeyboardButton(
-                    text=get_text("check_subscription_button", language_code),
-                    callback_data="check_subscription",
-                )
-            ],
-        ]
-    )
+    """Creates a keyboard with buttons to join all required channels"""
+    keyboard = []
+    
+    # Add a button for each channel
+    for channel in REQUIRED_CHANNELS:
+        # Remove '@' from the beginning if it exists for URL
+        channel_id = channel
+        if channel_id.startswith('@'):
+            channel_id = channel_id[1:]
+            
+        keyboard.append([
+            types.InlineKeyboardButton(
+                text=f"{get_text('join_channel_button', language_code)} {channel}",
+                url=f"https://t.me/{channel_id}",
+            )
+        ])
+    
+    # Add the check subscription button at the end
+    keyboard.append([
+        types.InlineKeyboardButton(
+            text=get_text("check_subscription_button", language_code),
+            callback_data="check_subscription",
+        )
+    ])
+    
+    return types.InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 async def send_localized_message(
@@ -278,16 +292,14 @@ async def start_command(message: types.Message, db: Database):
 
     caption_key = "start" if access_granted else "access_denied_subscription"
     
-    # Ensure proper channel formatting for the message
-    channel_name = REQUIRED_CHANNELS
-    if not channel_name.startswith('@'):
-        channel_name = '@' + channel_name
+    # Format channels for display, e.g. "@Channel1, @Channel2"
+    channels_formatted = ", ".join(REQUIRED_CHANNELS)
         
     caption = await send_localized_message(
         message,
         caption_key,
         user,
-        channel=channel_name,
+        channels=channels_formatted,
         invite_link=invite_link,
         balance=user.balance,
         current_model=user.current_model,
@@ -340,13 +352,24 @@ async def check_subscription_callback(callback: types.CallbackQuery, db: Databas
         )
         await callback.message.answer(welcome_text)
     else:
-        # Format the channel name for display
-        channel_name = REQUIRED_CHANNELS
-        if not channel_name.startswith('@'):
-            channel_name = '@' + channel_name
+        # Format channels for alert message
+        missing_channels = []
+        for channel in REQUIRED_CHANNELS:
+            try:
+                channel_id = channel
+                if channel_id.startswith('@'):
+                    channel_id = channel_id[1:]
+                    
+                member = await callback.message.bot.get_chat_member('@' + channel_id, user.user_id)
+                if member.status in ["left", "kicked", "banned"]:
+                    missing_channels.append(channel)
+            except Exception:
+                missing_channels.append(channel)
+                
+        missing_text = ", ".join(missing_channels) if missing_channels else ", ".join(REQUIRED_CHANNELS)
             
         await callback.answer(
-            get_text("still_not_subscribed", user.language_code), show_alert=True
+            get_text("still_not_subscribed", user.language_code) + f" {missing_text}", show_alert=True
         )
 
 
