@@ -165,9 +165,12 @@ async def handle_ping(request: web.Request):
 async def keep_alive(app):
     """Periodic request to prevent free instance from spinning down"""
     session: ClientSession = ClientSession()
-    ping_url = f"http://{WEBHOOK_URL}:{PORT}/ping"
-    
     try:
+        # Extract hostname without http:// prefix and port
+        host_parts = WEBHOOK_URL.replace("http://", "").replace("https://", "").split(":")
+        base_hostname = host_parts[0]
+        ping_url = f"https://{base_hostname}/ping"
+        
         while True:
             try:
                 await asyncio.sleep(540)  # Ping every 9 minutes
@@ -219,26 +222,32 @@ async def main():
 
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, WEBHOOK_URL, PORT)
-    await site.start()
-    logger.info(f"Server started on {WEBHOOK_URL}:{PORT}")
     
-    # Start task to keep free instance active
-    keep_alive_task = asyncio.create_task(keep_alive(app))
-    logger.info("Self-ping task started to prevent free instance from spinning down")
-
-    # Handle termination signals
-    loop = asyncio.get_event_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(
-            sig, lambda: asyncio.create_task(shutdown(loop, runner, app))
-        )
-
-    # Keep the application running
+    # Use WEB_SERVER_HOST for binding the local server
+    site = web.TCPSite(runner, WEB_SERVER_HOST, PORT)
+    
     try:
+        await site.start()
+        logger.info(f"Server started on {WEB_SERVER_HOST}:{PORT}")
+        logger.info(f"Webhook URL: {WEBHOOK_URL}{WEBHOOK_PATH}")
+        
+        # Start task to keep free instance active
+        keep_alive_task = asyncio.create_task(keep_alive(app))
+        logger.info("Self-ping task started to prevent free instance from spinning down")
+
+        # Handle termination signals
+        loop = asyncio.get_event_loop()
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(
+                sig, lambda: asyncio.create_task(shutdown(loop, runner, app))
+            )
+
+        # Keep the application running
         await asyncio.Event().wait()
-    except asyncio.CancelledError:
-        logger.info("Application terminated")
+    except Exception as e:
+        logger.error(f"Error starting server: {e}")
+        # Attempt to clean up resources
+        await shutdown(asyncio.get_event_loop(), runner, app)
 
 
 if __name__ == "__main__":
