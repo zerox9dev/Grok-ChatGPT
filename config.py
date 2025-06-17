@@ -19,9 +19,10 @@ CLAUDE_MODEL = env.str("CLAUDE_MODEL", "claude-3-7-sonnet-20250219")  # Назв
 REFERRAL_TOKENS = (
     10  # Количество токенов, начисляемых за приглашение по реферальной ссылке
 )
-REQUIRED_CHANNEL = (
-    "@Pix2Code"  # Обязательный канал для подписки (например, для активации бота)
-)
+REQUIRED_CHANNELS = [
+    "@Pix2Code",  # Первый обязательный канал
+    "@talentx_tg"  # Второй обязательный канал - замените на нужное имя
+]
 
 # API-ключи для сервисов ИИ
 OPENAI_API_KEY = env.str("OPENAI_API_KEY")  # Ключ API для доступа к OpenAI

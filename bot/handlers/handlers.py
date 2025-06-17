@@ -28,7 +28,7 @@ from config import (
     IMAGE_MODELS,
     MODEL_NAMES,
     REFERRAL_TOKENS,
-    REQUIRED_CHANNEL,
+    REQUIRED_CHANNELS,
     YOUR_ADMIN_ID,
 )
 
@@ -91,10 +91,16 @@ def format_to_html(text):
 
 async def check_subscription(bot, user_id: int) -> bool:
     try:
-        member = await bot.get_chat_member(REQUIRED_CHANNEL, user_id)
+        # Remove '@' from the beginning if it exists
+        channel_id = REQUIRED_CHANNELS
+        if channel_id.startswith('@'):
+            channel_id = channel_id[1:]
+            
+        member = await bot.get_chat_member('@' + channel_id, user_id)
         return member.status not in ["left", "kicked", "banned"]
     except Exception as e:
         logger.error(f"Subscription check failed for user {user_id}: {str(e)}")
+        # Return False on any error to be safe
         return False
 
 
@@ -113,11 +119,15 @@ def require_access(func):
 
         if not access_granted:
             # Если не подписан, отправляем сообщение и прерываем выполнение
+            channel_name = REQUIRED_CHANNELS
+            if not channel_name.startswith('@'):
+                channel_name = '@' + channel_name
+                
             await send_localized_message(
                 message,
                 "access_denied_subscription",
                 user,
-                channel=REQUIRED_CHANNEL,
+                channel=channel_name,
                 reply_markup=get_subscription_keyboard(user.language_code),
             )
             # Если access_granted был True, сбрасываем его в False
@@ -151,12 +161,17 @@ def require_access(func):
 
 
 def get_subscription_keyboard(language_code: str) -> types.InlineKeyboardMarkup:
+    # Format the channel name correctly for the URL
+    channel_name = REQUIRED_CHANNELS
+    if channel_name.startswith('@'):
+        channel_name = channel_name[1:]  # Remove '@' for URL
+        
     return types.InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 types.InlineKeyboardButton(
                     text=get_text("join_channel_button", language_code),
-                    url=f"https://t.me/{REQUIRED_CHANNEL.replace('@', '')}",
+                    url=f"https://t.me/{channel_name}",
                 )
             ],
             [
@@ -262,11 +277,17 @@ async def start_command(message: types.Message, db: Database):
         user.tariff = "free"
 
     caption_key = "start" if access_granted else "access_denied_subscription"
+    
+    # Ensure proper channel formatting for the message
+    channel_name = REQUIRED_CHANNELS
+    if not channel_name.startswith('@'):
+        channel_name = '@' + channel_name
+        
     caption = await send_localized_message(
         message,
         caption_key,
         user,
-        channel=None if access_granted else REQUIRED_CHANNEL,
+        channel=channel_name,
         invite_link=invite_link,
         balance=user.balance,
         current_model=user.current_model,
@@ -319,19 +340,19 @@ async def check_subscription_callback(callback: types.CallbackQuery, db: Databas
         )
         await callback.message.answer(welcome_text)
     else:
+        # Format the channel name for display
+        channel_name = REQUIRED_CHANNELS
+        if not channel_name.startswith('@'):
+            channel_name = '@' + channel_name
+            
         await callback.answer(
             get_text("still_not_subscribed", user.language_code), show_alert=True
         )
 
 
 @router.message(Command("profile"))
-async def profile_command(message: types.Message, db: Database):
-    manager = await db.get_user_manager()
-    user = await manager.get_user(
-        message.from_user.id,
-        message.from_user.username,
-        message.from_user.language_code,
-    )
+@require_access
+async def profile_command(message: types.Message, db: Database, user: User):
     await send_localized_message(
         message,
         "profile",
@@ -343,13 +364,8 @@ async def profile_command(message: types.Message, db: Database):
 
 
 @router.message(Command("help"))
-async def help_command(message: types.Message, db: Database):
-    manager = await db.get_user_manager()
-    user = await manager.get_user(
-        message.from_user.id,
-        message.from_user.username,
-        message.from_user.language_code,
-    )
+@require_access
+async def help_command(message: types.Message, db: Database, user: User):
     await send_localized_message(
         message, "help", user, balance=user.balance, current_model=user.current_model
     )
