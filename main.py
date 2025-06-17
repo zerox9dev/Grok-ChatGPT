@@ -13,7 +13,7 @@ from aiohttp import ClientSession, web
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from bot.database.database import Database
-from bot.handlers.handlers import router  # Основной роутер для команд
+from bot.handlers.handlers import router  # Main router for commands
 from bot.locales.utils import get_text
 from bot.utils.daily_tokens import daily_rewards_task
 from config import (
@@ -33,13 +33,13 @@ async def handle_telegram_webhook(request: web.Request, dp: Dispatcher, bot: Bot
     start_time = time.time()
     try:
         if not request.can_read_body:
-            logger.error("Запрос без тела")
+            logger.error("Request without body")
             return web.Response(status=400, text="No body")
 
         update_data = await request.json()
 
         if not isinstance(update_data, dict):
-            logger.error(f"Некорректный формат данных: {update_data}")
+            logger.error(f"Incorrect data format: {update_data}")
             return web.Response(status=400, text="Invalid JSON")
 
         update = Update(**update_data)
@@ -48,22 +48,22 @@ async def handle_telegram_webhook(request: web.Request, dp: Dispatcher, bot: Bot
 
         return web.Response(status=200)
     except ValueError as ve:
-        logger.error(f"Ошибка создания Update: {ve}")
+        logger.error(f"Error creating Update: {ve}")
         return web.Response(status=400, text=f"Invalid update data: {ve}")
     except Exception as e:
-        logger.error(f"Ошибка обработки вебхука: {e}")
+        logger.error(f"Error processing webhook: {e}")
         return web.Response(status=500, text=f"Internal error: {e}")
     finally:
-        logger.info(f"Обработка запроса заняла {time.time() - start_time:.2f} секунд")
+        logger.info(f"Request processing took {time.time() - start_time:.2f} seconds")
 
 
 async def on_startup(bot: Bot):
     webhook_url = f"{WEBHOOK_URL}{WEBHOOK_PATH}"
     try:
         await bot.set_webhook(webhook_url)
-        logger.info(f"Webhook установлен на {webhook_url}")
+        logger.info(f"Webhook set to {webhook_url}")
 
-        language_code = "uk"  # Это можно взять из конфига или настроек пользователя
+        language_code = "uk"  # This can be taken from config or user settings
 
         await bot.set_my_commands(
             [
@@ -101,30 +101,30 @@ async def on_startup(bot: Bot):
                 ),
             ]
         )
-        logger.info("Команды бота успешно зарегистрированы")
+        logger.info("Bot commands successfully registered")
     except Exception as e:
-        logger.error(f"Ошибка при установке вебхука и регистрации команд: {e}")
+        logger.error(f"Error setting webhook and registering commands: {e}")
 
 
 async def on_shutdown(bot: Bot, db: Database):
     try:
-        # Удаляем вебхук
+        # Remove webhook
         await bot.delete_webhook()
-        logger.info("Вебхук успешно удален")
+        logger.info("Webhook successfully removed")
 
-        # Закрываем сессию бота
+        # Close bot session
         if bot.session is not None and not bot.session.closed:
             await bot.session.close()
-            logger.info("Сессия бота закрыта")
+            logger.info("Bot session closed")
 
-        # Закрываем соединение с базой данных
+        # Close database connection
         await db.close()
-        logger.info("Соединение с базой данных закрыто")
+        logger.info("Database connection closed")
 
     except Exception as e:
-        logger.error(f"Ошибка в процессе завершения: {e}")
+        logger.error(f"Error during shutdown: {e}")
     finally:
-        logger.info("Сервисы успешно остановлены")
+        logger.info("Services successfully stopped")
 
 
 async def shutdown(loop, runner, app):
@@ -151,74 +151,100 @@ async def shutdown(loop, runner, app):
         # Stop the event loop
         loop.stop()
     except Exception as e:
-        logger.error(f"Ошибка при завершении работы: {e}")
+        logger.error(f"Error during shutdown: {e}")
 
 
 async def handle_root(request: web.Request):
-    return web.Response(text="Сервер работает")
+    return web.Response(text="Server is running")
 
 
 async def handle_ping(request: web.Request):
-    return web.Response(text="pong")
+    return web.Response(text="pong - Your free instance will spin down with inactivity, which can delay requests by 50 seconds or more.")
+
+
+async def keep_alive(app):
+    """Periodic request to prevent free instance from spinning down"""
+    session: ClientSession = ClientSession()
+    ping_url = f"http://{WEBHOOK_URL}:{PORT}/ping"
+    
+    try:
+        while True:
+            try:
+                await asyncio.sleep(540)  # Ping every 9 minutes
+                async with session.get(ping_url) as response:
+                    if response.status == 200:
+                        logger.info("Self-ping successful - instance is active")
+                    else:
+                        logger.warning(f"Self-ping returned code {response.status}")
+            except Exception as e:
+                logger.error(f"Error performing self-ping: {e}")
+    except asyncio.CancelledError:
+        logger.info("Self-ping task stopped")
+    finally:
+        await session.close()
 
 
 async def main():
-    # Создаем базу данных
+    # Create database
     db = Database(MONGO_URL)
 
-    # Создаем бота и диспетчер
+    # Create bot and dispatcher
     bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher()
 
-    # Инициализируем планировщик
+    # Initialize scheduler
     scheduler = AsyncIOScheduler(timezone="UTC")
     scheduler.add_job(daily_rewards_task, "cron", hour=0, minute=0, args=(bot, db))
     scheduler.start()
 
-    # Добавляем базу данных в контекст диспетчера
+    # Add database to dispatcher context
     dp["db"] = db
 
-    # Регистрируем роутеры
+    # Register routers
     dp.include_router(router)
 
-    # Настраиваем веб-приложение
+    # Configure web application
     app = web.Application()
     app.router.add_post(WEBHOOK_PATH, partial(handle_telegram_webhook, dp=dp, bot=bot))
-    app.router.add_get("/", handle_root)  # Роутер для корневого пути
-    app.router.add_get("/ping", handle_ping)  # Роутер для пинг-понга
+    app.router.add_get("/", handle_root)  # Router for root path
+    app.router.add_get("/ping", handle_ping)  # Router for ping-pong
 
-    # Сохраняем бота и базу данных в контексте приложения
+    # Save bot and database in application context
     app["bot"] = bot
     app["db"] = db
 
-    # Регистрируем обработчики startup и shutdown
+    # Register startup and shutdown handlers
     app.on_startup.append(lambda _: on_startup(bot))
-    # Убираем on_shutdown из app, так как мы будем управлять им вручную в shutdown
+    # Remove on_shutdown from app as we will handle it manually in shutdown
 
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, WEB_SERVER_HOST, PORT)
+    site = web.TCPSite(runner, WEBHOOK_URL, PORT)
     await site.start()
-    logger.info(f"Сервер запущен на {WEB_SERVER_HOST}:{PORT}")
+    logger.info(f"Server started on {WEBHOOK_URL}:{PORT}")
+    
+    # Start task to keep free instance active
+    keep_alive_task = asyncio.create_task(keep_alive(app))
+    logger.info("Self-ping task started to prevent free instance from spinning down")
 
-    # Обработка сигналов завершения
+    # Handle termination signals
     loop = asyncio.get_event_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(
             sig, lambda: asyncio.create_task(shutdown(loop, runner, app))
         )
 
-    # Держим приложение запущенным
+    # Keep the application running
     try:
         await asyncio.Event().wait()
     except asyncio.CancelledError:
-        logger.info("Приложение завершено")
+        logger.info("Application terminated")
 
 
 if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("Приложение завершено по запросу пользователя")
+        logger.info("Application terminated by user request")
     except Exception as e:
-        logger.error(f"Ошибка в приложении: {e}")
+        logger.error(f"Error in application: {e}")
