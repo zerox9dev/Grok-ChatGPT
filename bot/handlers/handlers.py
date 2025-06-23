@@ -175,7 +175,7 @@ def get_subscription_keyboard(language_code: str) -> types.InlineKeyboardMarkup:
             
         keyboard.append([
             types.InlineKeyboardButton(
-                text=f"{get_text('join_channel_button', language_code)} {channel}",
+                text=f"{channel}",
                 url=f"https://t.me/{channel_id}",
             )
         ])
