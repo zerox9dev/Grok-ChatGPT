@@ -1,6 +1,4 @@
-import asyncio
 import logging
-import os
 import re
 from datetime import datetime, timedelta
 from functools import wraps
@@ -10,6 +8,7 @@ from aiogram import F, Router, types
 from aiogram.enums import ChatAction, ParseMode
 from aiogram.filters import Command, CommandObject
 from aiogram.types import FSInputFile
+
 
 from bot.database.database import Database, UserManager
 from bot.database.models import User
@@ -425,46 +424,7 @@ async def change_model_handler(callback: types.CallbackQuery, db: Database, user
 
 
 
-@router.message(Command("audio"))
-@require_access
-async def audio_command(message: types.Message, db: Database, user: User):
-    try:
-        text = message.text.split("/audio", 1)[1].strip()
-    except IndexError:
-        await send_localized_message(message, "audio_prompt_required", user)
-        return
 
-    if user.balance < 5:
-        await message.answer("У вас недостатньо токенів для генерації аудіо.")
-        return
-
-    try:
-        await message.bot.send_chat_action(
-            chat_id=message.chat.id, action=ChatAction.RECORD_VOICE
-        )
-
-        gpt_service = MODEL_SERVICES[GPT_MODEL]
-        output_path = f"audio_{message.from_user.id}_{datetime.now().strftime('%Y%m%d%H%M%S')}.mp3"
-
-        await gpt_service.text_to_speech(text, output_path=output_path)
-
-        if os.path.exists(output_path):
-            audio = FSInputFile(output_path)
-            await message.answer_voice(audio)
-
-            # Дожидаемся завершения отправки, потом удаляем файл
-            await asyncio.sleep(1)
-            os.remove(output_path)
-
-            manager = await db.get_user_manager()
-            await manager.update_balance_and_history(
-                user.user_id, 5, "tts-1", text, "audio_generated"
-            )
-        else:
-            await message.answer("Помилка: файл аудіо не був створений")
-    except Exception as e:
-        logger.error(f"Audio generation failed: {str(e)}")
-        await message.answer(f"Помилка генерації аудіо: {str(e)}")
 
 
 async def process_referral(message: types.Message, user: User, db: Database) -> None:
@@ -511,7 +471,7 @@ async def send_inviter_notification(
 @require_access
 async def handle_message(message: types.Message, db: Database, user: User):
     # Проверка баланса
-    tokens_cost = 0 if user.current_model == "tts-1" else 1
+    tokens_cost = 1
     if user.balance < tokens_cost:
         next_day = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
         await send_localized_message(message, "no_tokens", user, next_day=next_day)
@@ -519,7 +479,7 @@ async def handle_message(message: types.Message, db: Database, user: User):
 
     # Отправляем сообщение об ожидании
     wait_message = await message.answer(
-        "⏳ Ваш запит обробляється, будь ласка, зачекайте..."
+        "⏳"
     )
 
     try:

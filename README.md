@@ -8,13 +8,13 @@ My Telegram bot providing access to modern AI models (GPT-4O, Claude) directly i
 - **Multiple AI Models**: support for ChatGPT and Claude
 - **Content Generation**:
   - Text responses with context memory
-  - Text-to-speech conversion
-  - Image analysis (send a photo → get a description)
-- **Token Economy**:
+  - Image analysis and description
+- **User Management**:
+  - Token-based economy
   - Daily free tokens
-  - Referral system: invite friends → get tokens
-- **Multilingual**: support for Russian, Ukrainian, and English
-- **Convenient Administration**: user management and mass messaging
+  - Referral system
+- **Multilingual Support**: Russian, English, and Ukrainian interfaces
+- **Admin Panel**: for monitoring and management
 
 ## Installation
 
@@ -60,7 +60,7 @@ WEBHOOK_URL=https://your_domain
 
 - `/start` - start working with the bot
 - `/models` - select AI model
-- `/audio [text]` - convert text to speech
+
 - `/invite` - get a referral link
 - `/profile` - information about your profile and balance
 - `/reset` - reset conversation history (context)
