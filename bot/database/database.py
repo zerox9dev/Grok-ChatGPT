@@ -5,7 +5,7 @@ from typing import Dict, Optional
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from bot.database.models import User  # Импорт User из models.py
-from config import GROK_MODEL
+from config import GPT_MODEL
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
@@ -101,8 +101,7 @@ class Database:
                     "username": username,
                     "balance": 0,
                     "language_code": language_code,
-                    "current_model": GROK_MODEL,
-                    "image_model": "gpt",  # Default image model is GPT (DALL-E)
+                    "current_model": GPT_MODEL,
                     "created_at": datetime.utcnow(),
                     "messages_history": [],
                     "invited_users": [],

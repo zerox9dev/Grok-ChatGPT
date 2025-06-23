@@ -13,19 +13,14 @@ from aiogram.types import FSInputFile
 
 from bot.database.database import Database, UserManager
 from bot.database.models import User
-from bot.keyboards.keyboards import get_image_models_keyboard, get_models_keyboard
+from bot.keyboards.keyboards import get_models_keyboard
 from bot.locales.utils import get_text
 from bot.services.gpt import GPTService
-from bot.services.grok import GrokService
 from bot.services.claude import ClaudeService
 from config import (
     DAILY_TOKENS,
-    DALLE_MODEL,
     GPT_MODEL,
-    GROK_MODEL,
     CLAUDE_MODEL,
-    IMAGE_COST,
-    IMAGE_MODELS,
     MODEL_NAMES,
     REFERRAL_TOKENS,
     REQUIRED_CHANNELS,
@@ -38,7 +33,6 @@ logger = logging.getLogger(__name__)
 
 MODEL_SERVICES = {
     GPT_MODEL: GPTService(),
-    GROK_MODEL: GrokService(),
     CLAUDE_MODEL: ClaudeService(),
 }
 
@@ -414,20 +408,6 @@ async def models_command(message: types.Message, db: Database, user: User):
     )
 
 
-@router.message(Command("image_model"))
-@require_access
-async def image_model_command(message: types.Message, db: Database, user: User):
-    """
-    Команда для выбора модели генерации изображений
-    """
-    await send_localized_message(
-        message,
-        "select_image_model",
-        user,
-        reply_markup=get_image_models_keyboard(user.language_code),
-    )
-
-
 @router.callback_query(F.data.startswith("model_"))
 @require_access
 async def change_model_handler(callback: types.CallbackQuery, db: Database, user: User):
@@ -439,61 +419,10 @@ async def change_model_handler(callback: types.CallbackQuery, db: Database, user
     )
 
 
-@router.callback_query(F.data.startswith("img_model_"))
-@require_access
-async def change_image_model_handler(
-    callback: types.CallbackQuery, db: Database, user: User
-):
-    """
-    Обработчик выбора модели для генерации изображений
-    """
-    img_model = callback.data.split("_")[2]  # gpt или grok
-    manager = await db.get_user_manager()
-    await manager.update_user(user.user_id, {"image_model": img_model})
-    
-    model_name = "DALL-E 3" if img_model == "gpt" else "Grok-2-image"
-    await callback.message.edit_text(
-        get_text("image_model_changed", user.language_code, model=model_name),
-        reply_markup=None,
-    )
 
 
-@router.message(Command("image"))
-@require_access
-async def image_command(message: types.Message, db: Database, user: User):
-    try:
-        prompt = message.text.split("/image", 1)[1].strip()
-    except IndexError:
-        await send_localized_message(message, "image_prompt_required", user)
-        return
 
-    if user.balance < IMAGE_COST:
-        await message.answer("У вас недостатньо токенів для генерації зображення.")
-        return
 
-    try:
-        await message.bot.send_chat_action(
-            chat_id=message.chat.id, action=ChatAction.UPLOAD_PHOTO
-        )
-        
-        # Выбираем сервис в зависимости от предпочтений пользователя
-        if user.image_model == "gpt":
-            service = MODEL_SERVICES[GPT_MODEL]
-            model_name = DALLE_MODEL
-        else:  # user.image_model == "grok"
-            service = MODEL_SERVICES[GROK_MODEL]
-            model_name = IMAGE_MODELS[user.image_model]
-            
-        image_url = await service.generate_image(prompt)
-        await message.answer_photo(image_url)
-
-        manager = await db.get_user_manager()
-        await manager.update_balance_and_history(
-            user.user_id, IMAGE_COST, model_name, prompt, image_url
-        )
-    except Exception as e:
-        logger.error(f"Image generation failed: {str(e)}")
-        await message.answer(f"Помилка генерації зображення: {str(e)}")
 
 
 @router.message(Command("audio"))

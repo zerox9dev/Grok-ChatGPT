@@ -75,10 +75,7 @@ async def on_startup(bot: Bot):
                     command="/models",
                     description=get_text("models_description", language_code),
                 ),
-                types.BotCommand(
-                    command="/image",
-                    description=get_text("image_description", language_code),
-                ),
+
                 types.BotCommand(
                     command="/audio",
                     description=get_text("audio_description", language_code),
