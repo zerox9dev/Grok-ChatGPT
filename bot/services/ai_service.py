@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 from g4f.client import Client 
 
-from config import MAX_TOKENS, HUGGINGFACE_API_KEY
+from config import MAX_TOKENS
 
 
 class AIService:
