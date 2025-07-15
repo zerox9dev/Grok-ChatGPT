@@ -23,10 +23,6 @@ REQUIRED_CHANNELS = [
     "@talentx_tg"  # Второй обязательный канал - замените на нужное имя
 ]
 
-# API-ключи для сервисов ИИ
-OPENAI_API_KEY = env.str("OPENAI_API_KEY")  # Ключ API для доступа к OpenAI
-ANTHROPIC_API_KEY = env.str("ANTHROPIC_API_KEY")  # Ключ API для доступа к Anthropic
-
 MODEL_NAMES = {
     GPT_MODEL: "GPT o3",
     CLAUDE_MODEL: "Claude 4",

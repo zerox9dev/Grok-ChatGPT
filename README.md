@@ -5,7 +5,7 @@ My Telegram bot providing access to modern AI models (GPT, Claude) directly in y
 
 ## Features
 
-- **Multiple AI Models**: support for ChatGPT and Claude
+- **Multiple AI Models**: support for ChatGPT and Claude models via g4f (free)
 - **Content Generation**:
   - Text responses with context memory
   - Image analysis and description
@@ -39,12 +39,8 @@ python main.py
 ## Environment Variables
 
 ```env
-# API Keys for models
-OPENAI_API_KEY=sk-your_openai_key
-ANTHROPIC_API_KEY=your_anthropic_key
-
 # Model settings
-GPT_MODEL=gpt-4o
+GPT_MODEL=gpt-4o-mini
 CLAUDE_MODEL=claude-3-7-sonnet-20250219
 
 # Telegram and MongoDB settings
@@ -72,8 +68,7 @@ The bot is built on a modern technology stack:
 
 - **aiogram 3.x** - for interacting with Telegram API
 - **MongoDB** (motor) - asynchronous database operations
-- **OpenAI API** - for access to GPT-4O
-- **Anthropic API** - for integration with Claude
+- **g4f** - for free access to GPT and Claude models
 - **APScheduler** - for executing scheduled tasks
 
 ## Project Structure

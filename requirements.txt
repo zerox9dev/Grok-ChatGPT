@@ -5,3 +5,4 @@ openai
 stripe
 apscheduler
 anthropic
+g4f

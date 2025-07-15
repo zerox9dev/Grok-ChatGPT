@@ -14,8 +14,7 @@ from bot.database.database import Database, UserManager
 from bot.database.models import User
 from bot.keyboards.keyboards import get_models_keyboard
 from bot.locales.utils import get_text
-from bot.services.gpt import GPTService
-from bot.services.claude import ClaudeService
+from bot.services.ai_service import AIService
 from config import (
     DAILY_TOKENS,
     GPT_MODEL,
@@ -30,11 +29,8 @@ from config import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-MODEL_SERVICES = {
-    GPT_MODEL: GPTService(),
-    CLAUDE_MODEL: ClaudeService(),
-}
-
+# Создаем словарь с моделями для кэширования
+MODEL_SERVICES = {}
 
 router = Router()
 
@@ -486,13 +482,13 @@ async def handle_message(message: types.Message, db: Database, user: User):
         await message.bot.send_chat_action(
             chat_id=message.chat.id, action=ChatAction.TYPING
         )
-        service = MODEL_SERVICES.get(user.current_model)
-        if not service:
-            await message.bot.delete_message(message.chat.id, wait_message.message_id)
-            await message.answer(
-                "❌ Невідома модель, спробуйте вибрати ще раз модель /models"
-            )
-            return
+        
+        # Получаем или создаем сервис для текущей модели пользователя
+        model_name = user.current_model
+        if model_name not in MODEL_SERVICES:
+            MODEL_SERVICES[model_name] = AIService(model_name=model_name)
+        
+        service = MODEL_SERVICES[model_name]
 
         # Обработка сообщения
         if message.photo:

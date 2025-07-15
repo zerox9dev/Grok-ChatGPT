@@ -1,4 +1,3 @@
-from bot.services.gpt import GPTService
-from bot.services.claude import ClaudeService
+from bot.services.ai_service import AIService
 
-__all__ = ["GPTService", "ClaudeService"] 
+__all__ = ["AIService"] 
