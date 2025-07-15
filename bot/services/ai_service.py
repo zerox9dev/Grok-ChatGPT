@@ -1,9 +1,9 @@
 import base64
 from typing import Dict, List, Optional
 
-from g4f.client import Client
+from g4f.client import Client 
 
-from config import MAX_TOKENS
+from config import MAX_TOKENS, HUGGINGFACE_API_KEY
 
 
 class AIService:
@@ -48,7 +48,7 @@ class AIService:
                 "model": self.model_name,
                 "messages": messages,
                 "max_tokens": MAX_TOKENS,
-                "web_search": False
+                "web_search": False,
             }
             
             # Добавляем системный промпт для моделей, которые его поддерживают
