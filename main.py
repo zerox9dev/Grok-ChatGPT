@@ -101,6 +101,13 @@ async def main():
     # Register routers
     dp.include_router(router)
 
+    # Clear any existing webhook before starting polling
+    try:
+        await bot.delete_webhook(drop_pending_updates=True)
+        logger.info("Webhook successfully removed")
+    except Exception as e:
+        logger.warning(f"Error removing webhook: {e}")
+    
     # Setup bot commands
     await setup_bot_commands(bot)
     
