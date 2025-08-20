@@ -18,10 +18,7 @@ CLAUDE_MODEL = env.str("CLAUDE_MODEL", "claude-3-7-sonnet-20250219")  # Назв
 REFERRAL_TOKENS = (
     10  # Количество токенов, начисляемых за приглашение по реферальной ссылке
 )
-REQUIRED_CHANNELS = [
-    "@Pix2Code",  # Первый обязательный канал
-    "@talentx_tg"  # Второй обязательный канал - замените на нужное имя
-]
+
 
 MODEL_NAMES = {
     GPT_MODEL: "GPT o3",

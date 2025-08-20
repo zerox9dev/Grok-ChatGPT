@@ -21,7 +21,6 @@ from config import (
     CLAUDE_MODEL,
     MODEL_NAMES,
     REFERRAL_TOKENS,
-    REQUIRED_CHANNELS,
     YOUR_ADMIN_ID,
 )
 
@@ -78,29 +77,7 @@ def format_to_html(text):
     return text
 
 
-async def check_subscription(bot, user_id: int) -> bool:
-    """
-    Checks if user is subscribed to all required channels.
-    Returns True only if subscribed to ALL channels.
-    """
-    try:
-        for channel in REQUIRED_CHANNELS:
-            # Remove '@' from the beginning if it exists for API call
-            channel_id = channel
-            if channel_id.startswith('@'):
-                channel_id = channel_id[1:]
-                
-            member = await bot.get_chat_member('@' + channel_id, user_id)
-            if member.status in ["left", "kicked", "banned"]:
-                # If not subscribed to any channel, return False immediately
-                return False
-                
-        # If we get here, user is subscribed to all channels
-        return True
-    except Exception as e:
-        logger.error(f"Subscription check failed for user {user_id}: {str(e)}")
-        # Return False on any error to be safe
-        return False
+
 
 
 def require_access(func):
@@ -113,33 +90,7 @@ def require_access(func):
             message.from_user.language_code,
         )
 
-        # Проверяем подписку независимо от текущего access_granted
-        access_granted = await check_subscription(message.bot, user.user_id)
-
-        if not access_granted:
-            # Если не подписан, отправляем сообщение и прерываем выполнение
-            # Format channels for display, e.g. "@Channel1, @Channel2"
-            channels_formatted = ", ".join(REQUIRED_CHANNELS)
-                
-            await send_localized_message(
-                message,
-                "access_denied_subscription",
-                user,
-                channels=channels_formatted,
-                reply_markup=get_subscription_keyboard(user.language_code),
-            )
-            # Если access_granted был True, сбрасываем его в False
-            if user.access_granted:
-                await manager.update_user(
-                    user.user_id,
-                    {
-                        "access_granted": False,
-                        "tariff": "free",
-                    },  # Сбрасываем тариф и доступ
-                )
-            return
-
-        # Если подписан, но access_granted был False, обновляем
+        # Убеждаемся, что у пользователя есть доступ
         if not user.access_granted:
             await manager.update_user(
                 user.user_id,
@@ -158,33 +109,7 @@ def require_access(func):
     return wrapper
 
 
-def get_subscription_keyboard(language_code: str) -> types.InlineKeyboardMarkup:
-    """Creates a keyboard with buttons to join all required channels"""
-    keyboard = []
-    
-    # Add a button for each channel
-    for channel in REQUIRED_CHANNELS:
-        # Remove '@' from the beginning if it exists for URL
-        channel_id = channel
-        if channel_id.startswith('@'):
-            channel_id = channel_id[1:]
-            
-        keyboard.append([
-            types.InlineKeyboardButton(
-                text=f"{channel}",
-                url=f"https://t.me/{channel_id}",
-            )
-        ])
-    
-    # Add the check subscription button at the end
-    keyboard.append([
-        types.InlineKeyboardButton(
-            text=get_text("check_subscription_button", language_code),
-            callback_data="check_subscription",
-        )
-    ])
-    
-    return types.InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 
 
 async def send_localized_message(
@@ -258,9 +183,8 @@ async def start_command(message: types.Message, db: Database):
     if len(message.text.split()) > 1:
         await process_referral(message, user, db)
 
-    # Проверяем подписку всегда
-    access_granted = await check_subscription(message.bot, user.user_id)
-    if access_granted and not user.access_granted:
+    # Даем всем пользователям доступ
+    if not user.access_granted:
         await manager.update_user(
             user.user_id,
             {
@@ -271,95 +195,21 @@ async def start_command(message: types.Message, db: Database):
         )
         user.access_granted = True
         user.tariff = "paid"
-    elif not access_granted and user.access_granted:
-        await manager.update_user(
-            user.user_id,
-            {"access_granted": False, "tariff": "free"},
-        )
-        user.access_granted = False
-        user.tariff = "free"
 
-    caption_key = "start" if access_granted else "access_denied_subscription"
-    
-    # Format channels for display, e.g. "@Channel1, @Channel2"
-    channels_formatted = ", ".join(REQUIRED_CHANNELS)
-        
     caption = await send_localized_message(
         message,
-        caption_key,
+        "start",
         user,
-        channels=channels_formatted,
         invite_link=invite_link,
         balance=user.balance,
         current_model=user.current_model,
         return_text=True,
     )
 
-    # Отправляем фото только если у пользователя нет доступа
-    reply_markup = (
-        None if access_granted else get_subscription_keyboard(user.language_code)
-    )
-    if not access_granted:
-        photo = FSInputFile("image/welcome.png")
-        await message.answer_photo(photo, caption=caption, reply_markup=reply_markup)
-    else:
-        await message.answer(caption, reply_markup=reply_markup)
+    await message.answer(caption)
 
 
-@router.callback_query(F.data == "check_subscription")
-async def check_subscription_callback(callback: types.CallbackQuery, db: Database):
-    manager = await db.get_user_manager()
-    user = await manager.get_user(
-        callback.from_user.id,
-        callback.from_user.username,
-        callback.from_user.language_code,
-    )
-    access_granted = await check_subscription(callback.message.bot, user.user_id)
 
-    if access_granted:
-        await manager.update_user(
-            user.user_id,
-            {
-                "access_granted": True,
-                "tariff": "paid",
-                "last_daily_reward": datetime.now(),
-            },
-        )
-        await callback.message.edit_caption(
-            caption=await send_localized_message(
-                callback.message, "subscription_confirmed", user, return_text=True
-            ),
-            reply_markup=None,
-        )
-        welcome_text = await send_localized_message(
-            callback.message,
-            "start",
-            user,
-            balance=user.balance,
-            current_model=user.current_model,
-            return_text=True,
-        )
-        await callback.message.answer(welcome_text)
-    else:
-        # Format channels for alert message
-        missing_channels = []
-        for channel in REQUIRED_CHANNELS:
-            try:
-                channel_id = channel
-                if channel_id.startswith('@'):
-                    channel_id = channel_id[1:]
-                    
-                member = await callback.message.bot.get_chat_member('@' + channel_id, user.user_id)
-                if member.status in ["left", "kicked", "banned"]:
-                    missing_channels.append(channel)
-            except Exception:
-                missing_channels.append(channel)
-                
-        missing_text = ", ".join(missing_channels) if missing_channels else ", ".join(REQUIRED_CHANNELS)
-            
-        await callback.answer(
-            get_text("still_not_subscribed", user.language_code) + f" {missing_text}", show_alert=True
-        )
 
 
 @router.message(Command("profile"))

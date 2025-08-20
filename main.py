@@ -76,12 +76,6 @@ async def cleanup_resources(bot: Bot, db: Database):
 
 
 
-
-
-
-
-
-
 async def main():
     # Create database
     db = Database(MONGO_URL)
