@@ -19,7 +19,6 @@ from config import (
     DAILY_TOKENS,
     GPT_MODEL,
     CLAUDE_MODEL,
-    MODEL_NAMES,
     REFERRAL_TOKENS,
     YOUR_ADMIN_ID,
 )
@@ -260,7 +259,7 @@ async def change_model_handler(callback: types.CallbackQuery, db: Database, user
     manager = await db.get_user_manager()
     await manager.update_user(user.user_id, {"current_model": model})
     await send_localized_message(
-        callback.message, "model_changed", user, model=MODEL_NAMES[model]
+        callback.message, "model_changed", user, model=model
     )
 
 

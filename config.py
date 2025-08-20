@@ -24,10 +24,7 @@ REFERRAL_TOKENS = (
 )
 
 
-MODEL_NAMES = {
-    GPT_MODEL: "GPT-5",
-    CLAUDE_MODEL: "Claude 4",
-}
+
 
 # Конфигурация бота и базы данных
 BOT_TOKEN = env.str("BOT_TOKEN")  # Токен для авторизации Telegram-бота
