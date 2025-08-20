@@ -15,7 +15,7 @@ class AIService:
         Args:
             model_name: Название модели (если None, будет использоваться gpt-4o-mini)
         """
-        self.model_name = model_name or "gpt-4o-mini"
+        self.model_name = model_name or "gpt-5"
         
         # Инициализируем клиенты
         self.openai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
