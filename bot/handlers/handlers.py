@@ -7,7 +7,7 @@ from typing import Optional, Union
 from aiogram import F, Router, types
 from aiogram.enums import ChatAction, ParseMode
 from aiogram.filters import Command, CommandObject
-from aiogram.types import FSInputFile
+
 
 
 from bot.database.database import Database, UserManager
@@ -16,9 +16,6 @@ from bot.keyboards.keyboards import get_models_keyboard
 from bot.locales.utils import get_text
 from bot.services.ai_service import AIService
 from config import (
-    DAILY_TOKENS,
-    GPT_MODEL,
-    CLAUDE_MODEL,
     REFERRAL_TOKENS,
     YOUR_ADMIN_ID,
 )
