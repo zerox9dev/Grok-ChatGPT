@@ -1,33 +1,95 @@
 import base64
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any, Union
+from functools import wraps
 
 import openai
 import anthropic
 
-from config import  OPENAI_API_KEY, ANTHROPIC_API_KEY
+from config import OPENAI_API_KEY, ANTHROPIC_API_KEY
+
+
+def error_handler(func):
+    """Декоратор для унификации обработки ошибок"""
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except Exception as e:
+            return f"Ошибка при выполнении операции: {str(e)}"
+    return wrapper
 
 
 class AIService:
+    # ================================================
+    # Конфигурация API параметров
+    # ================================================
+    MAX_TOKENS = 1000
+    DEFAULT_MODEL = "gpt-5"
+    
     def __init__(self, model_name: str = None):
         """
         Инициализирует сервис для работы с моделями ИИ через официальные API
         
         Args:
-            model_name: Название модели (если None, будет использоваться gpt-4o-mini)
+            model_name: Название модели (если None, будет использоваться DEFAULT_MODEL)
         """
-        self.model_name = model_name or "gpt-5"
+        self.model_name = model_name or self.DEFAULT_MODEL
         
-        # Инициализируем клиенты
+        # ================================================
+        # Инициализация клиентов
+        # ================================================
         self.openai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
-        
-        # Инициализируем Anthropic клиент только если есть API ключ
-        self.anthropic_client = None
-        if ANTHROPIC_API_KEY:
-            self.anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        self.anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
     
     def is_claude_model(self) -> bool:
         """Проверяет, является ли текущая модель Claude"""
         return self.model_name and "claude" in self.model_name.lower()
+    
+    def _prepare_messages(
+        self, content: Union[str, List[Dict]], context: List[Dict[str, str]] = None, 
+        system_prompt: str = None
+    ) -> List[Dict[str, str]]:
+        """Унифицированная подготовка сообщений для всех типов контента"""
+        if context is None:
+            context = []
+            
+        user_message = {"role": "user", "content": content}
+        messages = context + [user_message]
+        
+        if system_prompt:
+            messages.insert(0, {"role": "system", "content": system_prompt})
+        
+        return messages
+    
+    @error_handler
+    async def _make_api_call(
+        self, messages: List[Dict[str, str]], system_prompt: str = None
+    ) -> str:
+        """Универсальный метод для API вызовов к любому провайдеру"""
+        if self.is_claude_model():
+            if not self.anthropic_client:
+                return "Ошибка: API ключ Anthropic не настроен"
+            
+            # Убираем системный промпт из сообщений для Claude
+            claude_messages = [msg for msg in messages if msg["role"] != "system"]
+            
+            response = self.anthropic_client.messages.create(
+                model=self.model_name,
+                max_tokens=self.MAX_TOKENS,
+                messages=claude_messages,
+                system=system_prompt or ""
+            )
+            return response.content[0].text
+        else:
+            # OpenAI
+            params = {
+                "model": self.model_name,
+                "messages": messages,
+                "max_completion_tokens": self.MAX_TOKENS
+            }
+            
+            response = self.openai_client.chat.completions.create(**params)
+            return response.choices[0].message.content
     
     async def get_response(
         self, message: str, context: List[Dict[str, str]] = None, system_prompt: str = None
@@ -43,51 +105,33 @@ class AIService:
         Returns:
             Текстовый ответ от модели
         """
-        try:
-            if context is None:
-                context = []
-                
-            messages = context + [{"role": "user", "content": message}]
-            
-            # Добавляем системный промпт в начало, если он есть
-            if system_prompt:
-                messages.insert(0, {"role": "system", "content": system_prompt})
-            
-            if self.is_claude_model():
-                return await self._get_claude_response(messages, system_prompt)
-            else:
-                return await self._get_openai_response(messages)
-                
-        except Exception as e:
-            return f"Ошибка при получении ответа: {str(e)}"
+        messages = self._prepare_messages(message, context, system_prompt)
+        return await self._make_api_call(messages, system_prompt)
     
-    async def _get_openai_response(self, messages: List[Dict[str, str]]) -> str:
-        """Получает ответ от OpenAI модели"""
-        params = {
-            "model": self.model_name,
-            "messages": messages,
-            "max_completion_tokens": 1000  # GPT-5 использует max_completion_tokens
-        }
-        
-        response = self.openai_client.chat.completions.create(**params)
-        return response.choices[0].message.content
+    def _create_image_content(self, encoded_image: str) -> List[Dict]:
+        """Создает контент сообщения с изображением для разных API"""
+        if self.is_claude_model():
+            return [{
+                "type": "text",
+                "text": "Опиши это изображение:"
+            }, {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": "image/jpeg",
+                    "data": encoded_image
+                }
+            }]
+        else:
+            return [{
+                "type": "text", 
+                "text": "Опиши это изображение:"
+            }, {
+                "type": "image_url",
+                "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"}
+            }]
     
-    async def _get_claude_response(self, messages: List[Dict[str, str]], system_prompt: str = None) -> str:
-        """Получает ответ от Claude модели"""
-        if not self.anthropic_client:
-            return "Ошибка: API ключ Anthropic не настроен"
-        
-        # Для Claude нужно отдельно передавать системный промпт
-        claude_messages = [msg for msg in messages if msg["role"] != "system"]
-        
-        response = self.anthropic_client.messages.create(
-            model=self.model_name,
-            max_tokens=1000,  # Claude использует max_tokens
-            messages=claude_messages,
-            system=system_prompt if system_prompt else ""
-        )
-        return response.content[0].text
-    
+    @error_handler
     async def read_image(self, image_path: str) -> str:
         """
         Анализирует изображение с помощью выбранной модели через официальные API
@@ -98,62 +142,9 @@ class AIService:
         Returns:
             Текстовое описание изображения
         """
-        try:
-            with open(image_path, "rb") as image_file:
-                encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
-            
-            if self.is_claude_model():
-                return await self._analyze_image_claude(encoded_image)
-            else:
-                return await self._analyze_image_openai(encoded_image)
-                
-        except Exception as e:
-            return f"Ошибка при обработке изображения: {str(e)}"
-    
-    async def _analyze_image_openai(self, encoded_image: str) -> str:
-        """Анализирует изображение через OpenAI"""
-        # GPT-5 поддерживает анализ изображений из коробки
-        model = self.model_name
+        with open(image_path, "rb") as image_file:
+            encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
         
-        params = {
-            "model": model,
-            "messages": [{
-                "role": "user",
-                "content": [{
-                    "type": "text", 
-                    "text": "Опиши это изображение:"
-                }, {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"}
-                }]
-            }],
-            "max_completion_tokens": 1000  # GPT-5 использует max_completion_tokens
-        }
-        
-        response = self.openai_client.chat.completions.create(**params)
-        return response.choices[0].message.content
-    
-    async def _analyze_image_claude(self, encoded_image: str) -> str:
-        """Анализирует изображение через Claude"""
-        if not self.anthropic_client:
-            return "Ошибка: API ключ Anthropic не настроен"
-        
-        response = self.anthropic_client.messages.create(
-            model=self.model_name,
-            max_tokens=1000,  # Claude использует max_tokens
-            messages=[{
-                "role": "user",
-                "content": [{
-                    "type": "text",
-                    "text": "Опиши это изображение:"
-                }, {
-                    "type": "image",
-                    "source": {
-                        "type": "base64",
-                        "media_type": "image/jpeg",
-                        "data": encoded_image
-                    }
-                }]
-            }]
-        )
-        return response.content[0].text
+        image_content = self._create_image_content(encoded_image)
+        messages = self._prepare_messages(image_content)
+        return await self._make_api_call(messages)
