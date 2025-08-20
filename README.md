@@ -47,9 +47,7 @@ CLAUDE_MODEL=claude-3-7-sonnet-20250219
 BOT_TOKEN=your_telegram_bot_token
 MONGO_URL=your_mongodb_url
 
-# Webhook settings
-PORT=8443
-WEBHOOK_URL=https://your_domain
+
 ```
 
 ## Bot Commands

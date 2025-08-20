@@ -32,11 +32,7 @@ MODEL_NAMES = {
 BOT_TOKEN = env.str("BOT_TOKEN")  # Токен для авторизации Telegram-бота
 MONGO_URL = env.str("MONGO_URL")  # URL-адрес для подключения к базе данных MongoDB
 
-# Настройки веб-сервера
-WEB_SERVER_HOST = "0.0.0.0"  # Хост веб-сервера, доступный для всех сетевых интерфейсов
-PORT = env.int("PORT")  # Порт для запуска веб-сервера, задается в переменной окружения
-WEBHOOK_PATH = "/telegram-webhook"  # Путь для обработки входящих запросов от Telegram
-WEBHOOK_URL = env.str("WEBHOOK_URL")  # Полный URL-адрес вебхука для Telegram
+
 
 # Тарифы и токены
 FREE_TOKENS = 10  # Количество токенов, предоставляемых бесплатно новым пользователям
