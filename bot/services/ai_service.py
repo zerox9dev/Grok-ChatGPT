@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 import openai
 import anthropic
 
-from config import MAX_COMPLETION_TOKENS, OPENAI_API_KEY, ANTHROPIC_API_KEY
+from config import  OPENAI_API_KEY, ANTHROPIC_API_KEY
 
 
 class AIService:
@@ -66,8 +66,7 @@ class AIService:
         params = {
             "model": self.model_name,
             "messages": messages,
-            "max_completion_tokens": MAX_COMPLETION_TOKENS  # GPT-5 использует max_completion_tokens
-            # GPT-5 использует только дефолтный temperature (1)
+            "max_completion_tokens": 1000  # GPT-5 использует max_completion_tokens
         }
         
         response = self.openai_client.chat.completions.create(**params)
@@ -83,7 +82,7 @@ class AIService:
         
         response = self.anthropic_client.messages.create(
             model=self.model_name,
-            max_tokens=MAX_COMPLETION_TOKENS,  # Claude использует max_tokens
+            max_tokens=1000,  # Claude использует max_tokens
             messages=claude_messages,
             system=system_prompt if system_prompt else ""
         )
@@ -128,8 +127,7 @@ class AIService:
                     "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"}
                 }]
             }],
-            "max_completion_tokens": MAX_COMPLETION_TOKENS  # GPT-5 использует max_completion_tokens
-            # GPT-5 использует только дефолтный temperature (1)
+            "max_completion_tokens": 1000  # GPT-5 использует max_completion_tokens
         }
         
         response = self.openai_client.chat.completions.create(**params)
@@ -142,7 +140,7 @@ class AIService:
         
         response = self.anthropic_client.messages.create(
             model=self.model_name,
-            max_tokens=MAX_COMPLETION_TOKENS,  # Claude использует max_tokens
+            max_tokens=1000,  # Claude использует max_tokens
             messages=[{
                 "role": "user",
                 "content": [{
