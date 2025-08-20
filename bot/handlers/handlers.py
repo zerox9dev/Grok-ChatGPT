@@ -90,6 +90,7 @@ async def send_localized_message(
 ) -> Optional[str]:
     """Универсальная функция для отправки локализованных сообщений"""
     kwargs.update({
+        "user_id": user.user_id,
         "username": user.username or "",
         "invite_link": f"https://t.me/DockMixAIbot?start={user.user_id}",
         "balance": getattr(user, 'balance', 0),
