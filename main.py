@@ -7,113 +7,118 @@ from aiogram.enums import ParseMode
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from bot.database.database import Database
-from bot.handlers.handlers import router  # Main router for commands
+from bot.handlers.handlers import router
 from bot.locales.utils import get_text
 from bot.utils.daily_tokens import daily_rewards_task
-from config import (
-    BOT_TOKEN,
-    MONGO_URL,
-)
+from config import BOT_TOKEN, MONGO_URL
 
+# ================================================
+# Конфигурация логирования
+# ================================================
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# ================================================
+# Константы команд бота
+# ================================================
+BOT_COMMANDS = [
+    ("/start", "start_description"),
+    ("/models", "models_description"),
+    ("/invite", "invite_description"),
+    ("/profile", "profile_description"),
+    ("/help", "help_description"),
+    ("/reset", "reset_description"),
+]
 
 
-async def setup_bot_commands(bot: Bot):
+
+# ================================================
+# Функции инициализации
+# ================================================
+async def setup_bot_commands(bot: Bot, language_code: str = "uk"):
+    """Универсальная регистрация команд бота"""
     try:
-        language_code = "uk"  # This can be taken from config or user settings
-
-        await bot.set_my_commands(
-            [
-                types.BotCommand(
-                    command="/start",
-                    description=get_text("start_description", language_code),
-                ),
-                types.BotCommand(
-                    command="/models",
-                    description=get_text("models_description", language_code),
-                ),
-                types.BotCommand(
-                    command="/invite",
-                    description=get_text("invite_description", language_code),
-                ),
-                types.BotCommand(
-                    command="/profile",
-                    description=get_text("profile_description", language_code),
-                ),
-                types.BotCommand(
-                    command="/help",
-                    description=get_text("help_description", language_code),
-                ),
-                types.BotCommand(
-                    command="/reset",
-                    description=get_text("reset_description", language_code),
-                ),
-            ]
-        )
+        commands = [
+            types.BotCommand(command=cmd, description=get_text(desc_key, language_code))
+            for cmd, desc_key in BOT_COMMANDS
+        ]
+        await bot.set_my_commands(commands)
         logger.info("Bot commands successfully registered")
     except Exception as e:
         logger.error(f"Error registering commands: {e}")
 
 
-async def cleanup_resources(bot: Bot, db: Database):
-    try:
-        # Close bot session
-        if bot.session is not None and not bot.session.closed:
-            await bot.session.close()
-            logger.info("Bot session closed")
-
-        # Close database connection
-        await db.close()
-        logger.info("Database connection closed")
-
-    except Exception as e:
-        logger.error(f"Error during cleanup: {e}")
-    finally:
-        logger.info("Resources successfully cleaned up")
-
-
-
-
-async def main():
-    # Create database
-    db = Database(MONGO_URL)
-
-    # Create bot and dispatcher
-    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    dp = Dispatcher()
-
-    # Initialize scheduler
+async def initialize_scheduler(bot: Bot, db: Database) -> AsyncIOScheduler:
+    """Инициализация планировщика задач"""
     scheduler = AsyncIOScheduler(timezone="UTC")
     scheduler.add_job(daily_rewards_task, "cron", hour=0, minute=0, args=(bot, db))
     scheduler.start()
+    return scheduler
 
-    # Add database to dispatcher context
+
+async def initialize_bot_and_dispatcher() -> tuple[Bot, Dispatcher]:
+    """Инициализация бота и диспетчера"""
+    bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    dp = Dispatcher()
+    dp.include_router(router)
+    return bot, dp
+
+
+async def cleanup_resources(bot: Bot, db: Database):
+    """Очистка ресурсов при завершении"""
+    resources = [
+        ("bot session", lambda: bot.session and bot.session.close()),
+        ("database connection", db.close)
+    ]
+    
+    for resource_name, cleanup_func in resources:
+        try:
+            if callable(cleanup_func):
+                if asyncio.iscoroutinefunction(cleanup_func):
+                    await cleanup_func()
+                else:
+                    result = cleanup_func()
+                    if result:  # Если это не None, значит нужно выполнить
+                        await result
+            logger.info(f"{resource_name.title()} closed")
+        except Exception as e:
+            logger.error(f"Error closing {resource_name}: {e}")
+    
+    logger.info("Resources successfully cleaned up")
+
+
+async def main():
+    """Главная функция запуска бота"""
+    # ================================================
+    # Инициализация компонентов
+    # ================================================
+    db = Database(MONGO_URL)
+    bot, dp = await initialize_bot_and_dispatcher()
+    scheduler = await initialize_scheduler(bot, db)
+    
+    # Добавляем базу данных в контекст диспетчера
     dp["db"] = db
 
-    # Register routers
-    dp.include_router(router)
-
-    # Clear any existing webhook before starting polling
+    # ================================================
+    # Настройка бота
+    # ================================================
     try:
         await bot.delete_webhook(drop_pending_updates=True)
         logger.info("Webhook successfully removed")
     except Exception as e:
         logger.warning(f"Error removing webhook: {e}")
     
-    # Setup bot commands
     await setup_bot_commands(bot)
-    
     logger.info("Bot started in polling mode")
     
+    # ================================================
+    # Запуск бота
+    # ================================================
     try:
-        # Start polling
         await dp.start_polling(bot)
     except KeyboardInterrupt:
         logger.info("Bot stopped by user")
     finally:
-        # Cleanup resources
         await cleanup_resources(bot, db)
         scheduler.shutdown()
 

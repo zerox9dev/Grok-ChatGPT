@@ -7,7 +7,7 @@ CORE PRINCIPLES:
 DRY (Don't Repeat Yourself) - ABSOLUTE PRIORITY. Use existing libraries, NEVER reinvent. Minimal code, maximum functionality. If unsure - search PyPI/GitHub first.
 
 COMMENTS STYLE (ОБЯЗАТЕЛЬНО):
-Все комментарии только на русском языке. Используй разделители из символов равно для логических блоков: # ================================================. Формат блока: сначала разделитель, потом описание блока, потом снова разделитель. Краткие пояснения для сложной логики inline комментариями. Никаких английских комментариев.
+Все комментарии только на русском языке. Используй разделители из символов равно для логических блоков: # ================================================. Формат блока: сначала разделитель, потом описание блока, потом снова разделитель. Краткие пояснения для сложной логики inline комментариями. Никаких английских комментариев. БЕЗ DOCSTRING - только обычные комментарии над функциями если нужно.
 
 ARCHITECTURE:
 Single responsibility per function. Generic methods with parameters, not duplicates. Composition over inheritance. Dependency injection for testability. Async/await везде где возможно.
@@ -22,7 +22,7 @@ SEARCH BEFORE CODE:
 Unknown feature - search "telegram bot {feature} python". Check official docs first. Use stackoverflow solutions. Verify package popularity (stars, downloads). Ищи готовые библиотеки на PyPI перед написанием своего кода.
 
 FORBIDDEN:
-Custom implementations of existing solutions. Copy-paste similar code blocks. Hardcoded values - use config/env. Writing own parsers/validators. English comments. Синхронный код где можно async. Глобальные переменные.
+Docstrings ("""...""") - никогда не используй. Custom implementations of existing solutions. Copy-paste similar code blocks. Hardcoded values - use config/env. Writing own parsers/validators. English comments. Синхронный код где можно async. Глобальные переменные.
 
 STRUCTURE:
 bot.py - точка входа. handlers/ - обработчики команд. services/ - бизнес логика. models/ - pydantic модели. utils/ - вспомогательные функции. config.py - настройки из env.

@@ -1,37 +1,30 @@
-# Импорт библиотек
-from environs import (
-    Env,
-)  # Импорт класса Env из библиотеки environs для работы с переменными окружения
+from environs import Env
 
-# Инициализация окружения
-env = Env()  # Создание объекта Env для управления переменными окружения
-env.read_env()  # Чтение переменных из файла .env
+# ================================================
+# Инициализация конфигурации
+# ================================================
+env = Env()
+env.read_env()
 
-
+# ================================================
+# Основные настройки
+# ================================================
 YOUR_ADMIN_ID = 1483953251
 
-# Конфигурация моделей искусственного интеллекта
-GPT_MODEL = env.str("GPT_MODEL", "gpt-5")  # Название или идентификатор модели GPT
-CLAUDE_MODEL = env.str("CLAUDE_MODEL", "claude-3-7-sonnet-20250219")  # Название или идентификатор модели Claude
+# Модели ИИ
+GPT_MODEL = env.str("GPT_MODEL", "gpt-5")
+CLAUDE_MODEL = env.str("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+MAX_TOKENS = env.int("MAX_TOKENS", 1000)
 
-# Конфигурация API ключей
-OPENAI_API_KEY = env.str("OPENAI_API_KEY")  # API ключ для OpenAI
-ANTHROPIC_API_KEY = env.str("ANTHROPIC_API_KEY", None)  # API ключ для Anthropic (опционально)
+# API ключи
+OPENAI_API_KEY = env.str("OPENAI_API_KEY")
+ANTHROPIC_API_KEY = env.str("ANTHROPIC_API_KEY", None)
 
-# Настройки реферальной системы
-REFERRAL_TOKENS = (
-    10  # Количество токенов, начисляемых за приглашение по реферальной ссылке
-)
+# Бот и база данных
+BOT_TOKEN = env.str("BOT_TOKEN")
+MONGO_URL = env.str("MONGO_URL")
 
-
-
-
-# Конфигурация бота и базы данных
-BOT_TOKEN = env.str("BOT_TOKEN")  # Токен для авторизации Telegram-бота
-MONGO_URL = env.str("MONGO_URL")  # URL-адрес для подключения к базе данных MongoDB
-
-
-
-# Тарифы и токены
-FREE_TOKENS = 10  # Количество токенов, предоставляемых бесплатно новым пользователям
-DAILY_TOKENS = 10  # Ежедневное начисление токенов для пользователей с платным тарифом
+# Токены и тарифы
+FREE_TOKENS = 10
+DAILY_TOKENS = 10
+REFERRAL_TOKENS = 10

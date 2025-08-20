@@ -5,35 +5,34 @@ from functools import wraps
 import openai
 import anthropic
 
-from config import OPENAI_API_KEY, ANTHROPIC_API_KEY
+from config import OPENAI_API_KEY, ANTHROPIC_API_KEY, GPT_MODEL, MAX_TOKENS
+
+
+# ================================================
+# Константы для сообщений
+# ================================================
+IMAGE_ANALYSIS_PROMPT = "Опиши это изображение:"
+ERROR_ANTHROPIC_KEY_MISSING = "Ошибка: API ключ Anthropic не настроен"
+ERROR_OPERATION_FAILED = "Ошибка при выполнении операции"
 
 
 def error_handler(func):
-    """Декоратор для унификации обработки ошибок"""
+    # Декоратор для унификации обработки ошибок
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
             return await func(*args, **kwargs)
         except Exception as e:
-            return f"Ошибка при выполнении операции: {str(e)}"
+            return f"{ERROR_OPERATION_FAILED}: {str(e)}"
     return wrapper
 
 
 class AIService:
-    # ================================================
-    # Конфигурация API параметров
-    # ================================================
-    MAX_TOKENS = 1000
-    DEFAULT_MODEL = "gpt-5"
     
     def __init__(self, model_name: str = None):
-        """
-        Инициализирует сервис для работы с моделями ИИ через официальные API
-        
-        Args:
-            model_name: Название модели (если None, будет использоваться DEFAULT_MODEL)
-        """
-        self.model_name = model_name or self.DEFAULT_MODEL
+        # Инициализирует сервис для работы с моделями ИИ через официальные API
+        # model_name: Название модели (если None, будет использоваться GPT_MODEL из конфигурации)
+        self.model_name = model_name or GPT_MODEL
         
         # ================================================
         # Инициализация клиентов
@@ -42,14 +41,14 @@ class AIService:
         self.anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
     
     def is_claude_model(self) -> bool:
-        """Проверяет, является ли текущая модель Claude"""
+        # Проверяет, является ли текущая модель Claude
         return self.model_name and "claude" in self.model_name.lower()
     
     def _prepare_messages(
         self, content: Union[str, List[Dict]], context: List[Dict[str, str]] = None, 
         system_prompt: str = None
     ) -> List[Dict[str, str]]:
-        """Унифицированная подготовка сообщений для всех типов контента"""
+        # Унифицированная подготовка сообщений для всех типов контента
         if context is None:
             context = []
             
@@ -65,17 +64,17 @@ class AIService:
     async def _make_api_call(
         self, messages: List[Dict[str, str]], system_prompt: str = None
     ) -> str:
-        """Универсальный метод для API вызовов к любому провайдеру"""
+        # Универсальный метод для API вызовов к любому провайдеру
         if self.is_claude_model():
             if not self.anthropic_client:
-                return "Ошибка: API ключ Anthropic не настроен"
+                return ERROR_ANTHROPIC_KEY_MISSING
             
             # Убираем системный промпт из сообщений для Claude
             claude_messages = [msg for msg in messages if msg["role"] != "system"]
             
             response = self.anthropic_client.messages.create(
                 model=self.model_name,
-                max_tokens=self.MAX_TOKENS,
+                max_tokens=MAX_TOKENS,
                 messages=claude_messages,
                 system=system_prompt or ""
             )
@@ -85,7 +84,7 @@ class AIService:
             params = {
                 "model": self.model_name,
                 "messages": messages,
-                "max_completion_tokens": self.MAX_TOKENS
+                "max_completion_tokens": MAX_TOKENS
             }
             
             response = self.openai_client.chat.completions.create(**params)
@@ -94,26 +93,18 @@ class AIService:
     async def get_response(
         self, message: str, context: List[Dict[str, str]] = None, system_prompt: str = None
     ) -> str:
-        """
-        Получает ответ от выбранной модели ИИ через официальные API
-        
-        Args:
-            message: Текст сообщения пользователя
-            context: Контекст предыдущей беседы
-            system_prompt: Системный промпт для модели
-            
-        Returns:
-            Текстовый ответ от модели
-        """
+        # Получает ответ от выбранной модели ИИ через официальные API
+        # message: Текст сообщения пользователя, context: Контекст предыдущей беседы
+        # system_prompt: Системный промпт для модели
         messages = self._prepare_messages(message, context, system_prompt)
         return await self._make_api_call(messages, system_prompt)
     
     def _create_image_content(self, encoded_image: str) -> List[Dict]:
-        """Создает контент сообщения с изображением для разных API"""
+        # Создает контент сообщения с изображением для разных API
         if self.is_claude_model():
             return [{
                 "type": "text",
-                "text": "Опиши это изображение:"
+                "text": IMAGE_ANALYSIS_PROMPT
             }, {
                 "type": "image",
                 "source": {
@@ -125,7 +116,7 @@ class AIService:
         else:
             return [{
                 "type": "text", 
-                "text": "Опиши это изображение:"
+                "text": IMAGE_ANALYSIS_PROMPT
             }, {
                 "type": "image_url",
                 "image_url": {"url": f"data:image/jpeg;base64,{encoded_image}"}
@@ -133,15 +124,8 @@ class AIService:
     
     @error_handler
     async def read_image(self, image_path: str) -> str:
-        """
-        Анализирует изображение с помощью выбранной модели через официальные API
-        
-        Args:
-            image_path: Путь к файлу изображения
-            
-        Returns:
-            Текстовое описание изображения
-        """
+        # Анализирует изображение с помощью выбранной модели через официальные API
+        # image_path: Путь к файлу изображения
         with open(image_path, "rb") as image_file:
             encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
         

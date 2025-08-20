@@ -2,7 +2,7 @@ import logging
 import re
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Optional, Union
+from typing import Optional, Union, Callable, Any
 
 from aiogram import F, Router, types
 from aiogram.enums import ChatAction, ParseMode
@@ -20,63 +20,40 @@ from config import (
     YOUR_ADMIN_ID,
 )
 
-# Настройка логирования
+# ================================================
+# Инициализация и конфигурация
+# ================================================
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Создаем словарь с моделями для кэширования
-MODEL_SERVICES = {}
-
+MODEL_SERVICES = {}  # Кэш сервисов моделей
 router = Router()
 
-
-def escape_markdown(text):
-    """Экранирует специальные символы MarkdownV2"""
-    chars = [
-        "_",
-        "*",
-        "[",
-        "]",
-        "(",
-        ")",
-        "~",
-        "`",
-        ">",
-        "#",
-        "+",
-        "-",
-        "=",
-        "|",
-        "{",
-        "}",
-        ".",
-        "!",
+# ================================================
+# Утилитные функции для форматирования
+# ================================================
+def format_to_html(text: str) -> str:
+    """Универсальная функция форматирования markdown в HTML"""
+    patterns = [
+        (r"### \*\*(.*?)\*\*", r"<b><u>\1</u></b>"),  # Заголовки
+        (r"\*\*(.*?)\*\*", r"<b>\1</b>"),              # Жирный текст
+        (r"\*(.*?)\*", r"<i>\1</i>"),                  # Курсив
+        (r"---", "—————————"),                          # Разделители
     ]
-    for char in chars:
-        text = text.replace(char, f"\\{char}")
-    return text
-
-
-def format_to_html(text):
-    # Заголовки
-    text = re.sub(r"### \*\*(.*?)\*\*", r"<b><u>\1</u></b>", text)
-
-    # Жирный текст
-    text = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", text)
-
-    # Курсив
-    text = re.sub(r"\*(.*?)\*", r"<i>\1</i>", text)
-
-    # Разделители - заменяем на строку символов
-    text = text.replace("---", "—————————")
-
+    
+    for pattern, replacement in patterns:
+        text = re.sub(pattern, replacement, text)
     return text
 
 
 
 
 
-def require_access(func):
+# ================================================
+# Универсальные декораторы
+# ================================================
+def require_access(func: Callable) -> Callable:
+    """Универсальный декоратор для проверки доступа и получения пользователя"""
     @wraps(func)
     async def wrapper(message: types.Message, db: Database, *args, **kwargs):
         manager = await db.get_user_manager()
@@ -86,43 +63,52 @@ def require_access(func):
             message.from_user.language_code,
         )
 
-        # Убеждаемся, что у пользователя есть доступ
+        # Автоматически предоставляем доступ всем пользователям
         if not user.access_granted:
-            await manager.update_user(
-                user.user_id,
-                {
-                    "access_granted": True,
-                    "tariff": "paid",
-                    "last_daily_reward": datetime.now(),
-                },
-            )
+            await manager.update_user(user.user_id, {
+                "access_granted": True,
+                "tariff": "paid",
+                "last_daily_reward": datetime.now(),
+            })
             user.access_granted = True
             user.tariff = "paid"
 
-        # Выполняем основную функцию
         return await func(message, db, user=user, *args, **kwargs)
-
     return wrapper
 
 
 
 
 
+# ================================================
+# Универсальные функции-хелперы
+# ================================================
 async def send_localized_message(
-    message: types.Message,
-    key: str,
-    user: User,
+    message: types.Message, key: str, user: User,
     reply_markup: Optional[types.InlineKeyboardMarkup] = None,
-    return_text: bool = False,
-    **kwargs,
-) -> Union[str, None]:
-    kwargs.setdefault("username", user.username or "")
-    kwargs.setdefault("invite_link", "")
+    return_text: bool = False, **kwargs
+) -> Optional[str]:
+    """Универсальная функция для отправки локализованных сообщений"""
+    kwargs.update({
+        "username": user.username or "",
+        "invite_link": f"https://t.me/DockMixAIbot?start={user.user_id}",
+        "balance": getattr(user, 'balance', 0),
+        "current_model": getattr(user, 'current_model', 'GPT')
+    })
+    
     text = get_text(key, user.language_code, **kwargs)
     if return_text:
         return text
     await message.answer(text, reply_markup=reply_markup)
     return None
+
+
+def create_simple_command_handler(message_key: str) -> Callable:
+    """Фабрика для создания простых обработчиков команд"""
+    @require_access
+    async def handler(message: types.Message, db: Database, user: User):
+        await send_localized_message(message, message_key, user)
+    return handler
 
 
 @router.message(Command("send_all"))
@@ -166,8 +152,8 @@ async def invite_command(message: types.Message, db: Database, user: User):
     await message.answer(text)
 
 
-@router.message(Command("start"))
-async def start_command(message: types.Message, db: Database):
+async def handle_user_initialization(message: types.Message, db: Database) -> User:
+    """Инициализация пользователя с автоматическим предоставлением доступа"""
     manager = await db.get_user_manager()
     user = await manager.get_user(
         message.from_user.id,
@@ -175,63 +161,52 @@ async def start_command(message: types.Message, db: Database):
         message.from_user.language_code,
     )
 
-    invite_link = f"https://t.me/DockMixAIbot?start={user.user_id}"
+    # Обрабатываем реферальную ссылку если есть
     if len(message.text.split()) > 1:
         await process_referral(message, user, db)
 
-    # Даем всем пользователям доступ
+    # Автоматически предоставляем доступ
     if not user.access_granted:
-        await manager.update_user(
-            user.user_id,
-            {
-                "access_granted": True,
-                "tariff": "paid",
-                "last_daily_reward": datetime.now(),
-            },
-        )
+        await manager.update_user(user.user_id, {
+            "access_granted": True,
+            "tariff": "paid",
+            "last_daily_reward": datetime.now(),
+        })
         user.access_granted = True
         user.tariff = "paid"
 
-    caption = await send_localized_message(
-        message,
-        "start",
-        user,
-        invite_link=invite_link,
-        balance=user.balance,
-        current_model=user.current_model,
-        return_text=True,
-    )
+    return user
 
-    await message.answer(caption)
+
+@router.message(Command("start"))
+async def start_command(message: types.Message, db: Database):
+    """Команда запуска бота"""
+    user = await handle_user_initialization(message, db)
+    await send_localized_message(message, "start", user)
 
 
 
 
 
+# ================================================
+# Обработчики команд (упрощенные с помощью универсальных функций)
+# ================================================
 @router.message(Command("profile"))
-@require_access
-async def profile_command(message: types.Message, db: Database, user: User):
-    await send_localized_message(
-        message,
-        "profile",
-        user,
-        user_id=user.user_id,
-        balance=user.balance,
-        current_model=user.current_model,
-    )
+async def profile_command(message: types.Message, db: Database):
+    """Показать профиль пользователя"""
+    await create_simple_command_handler("profile")(message, db)
 
 
 @router.message(Command("help"))
-@require_access
-async def help_command(message: types.Message, db: Database, user: User):
-    await send_localized_message(
-        message, "help", user, balance=user.balance, current_model=user.current_model
-    )
+async def help_command(message: types.Message, db: Database):
+    """Показать справку"""
+    await create_simple_command_handler("help")(message, db)
 
 
 @router.message(Command("reset"))
 @require_access
 async def reset_command(message: types.Message, db: Database, user: User):
+    """Очистить историю сообщений"""
     manager = await db.get_user_manager()
     await manager.update_user(user.user_id, {"messages_history": []})
     await send_localized_message(message, "history_reset", user)
@@ -240,24 +215,21 @@ async def reset_command(message: types.Message, db: Database, user: User):
 @router.message(Command("models"))
 @require_access
 async def models_command(message: types.Message, db: Database, user: User):
+    """Показать доступные модели"""
     await send_localized_message(
-        message,
-        "select_model",
-        user,
-        current_model=user.current_model,
-        reply_markup=get_models_keyboard(user.language_code),
+        message, "select_model", user,
+        reply_markup=get_models_keyboard(user.language_code)
     )
 
 
 @router.callback_query(F.data.startswith("model_"))
 @require_access
 async def change_model_handler(callback: types.CallbackQuery, db: Database, user: User):
+    """Изменить текущую модель"""
     model = callback.data.split("_")[1]
     manager = await db.get_user_manager()
     await manager.update_user(user.user_id, {"current_model": model})
-    await send_localized_message(
-        callback.message, "model_changed", user, model=model
-    )
+    await send_localized_message(callback.message, "model_changed", user, model=model)
 
 
 
@@ -309,79 +281,94 @@ async def send_inviter_notification(
     await bot.send_message(inviter_id, text)
 
 
+# ================================================
+# Вспомогательные функции для обработки сообщений
+# ================================================
+def get_ai_service(model_name: str) -> AIService:
+    """Получить или создать AI сервис для модели"""
+    if model_name not in MODEL_SERVICES:
+        MODEL_SERVICES[model_name] = AIService(model_name=model_name)
+    return MODEL_SERVICES[model_name]
+
+
+async def process_image_message(message: types.Message, service: AIService) -> str:
+    """Обработка сообщения с изображением"""
+    import os
+    
+    photo = message.photo[-1]
+    file = await message.bot.get_file(photo.file_id)
+    file_path = f"temp_{message.from_user.id}_{photo.file_id}.jpg"
+    
+    try:
+        await message.bot.download_file(file.file_path, file_path)
+        response = await service.read_image(file_path)
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+    
+    return response
+
+
+def prepare_context_from_history(history: list) -> list:
+    """Подготовка контекста из истории сообщений"""
+    return [
+        {
+            "role": "user" if i % 2 == 0 else "assistant",
+            "content": entry.get("message" if i % 2 == 0 else "response", ""),
+        }
+        for i, entry in enumerate(history[-5:])
+    ]
+
+
+async def send_response_safely(message: types.Message, response: str) -> None:
+    """Безопасная отправка ответа с fallback форматированием"""
+    try:
+        formatted_response = format_to_html(response)
+        await message.answer(formatted_response, parse_mode=ParseMode.HTML)
+    except Exception as e:
+        await message.answer(response)
+        logger.error(f"HTML format error: {str(e)}")
+
+
 @router.message()
 @require_access
 async def handle_message(message: types.Message, db: Database, user: User):
-    # Проверка баланса
+    """Главный обработчик всех сообщений пользователей"""
     tokens_cost = 1
+    
+    # Проверка баланса
     if user.balance < tokens_cost:
         next_day = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
         await send_localized_message(message, "no_tokens", user, next_day=next_day)
         return
 
-    # Отправляем сообщение об ожидании
-    wait_message = await message.answer(
-        "⏳"
-    )
+    wait_message = await message.answer("⏳")
 
     try:
-        await message.bot.send_chat_action(
-            chat_id=message.chat.id, action=ChatAction.TYPING
-        )
+        await message.bot.send_chat_action(message.chat.id, ChatAction.TYPING)
         
-        # Получаем или создаем сервис для текущей модели пользователя
-        model_name = user.current_model
-        if model_name not in MODEL_SERVICES:
-            MODEL_SERVICES[model_name] = AIService(model_name=model_name)
-        
-        service = MODEL_SERVICES[model_name]
+        service = get_ai_service(user.current_model)
 
-        # Обработка сообщения
+        # Обработка сообщения в зависимости от типа
         if message.photo:
-            # Обработка фото...
-            photo = message.photo[-1]
-            file = await message.bot.get_file(photo.file_id)
-            file_path = f"temp_{message.from_user.id}_{photo.file_id}.jpg"
-            await message.bot.download_file(file.file_path, file_path)
-            response = await service.read_image(file_path)
-            import os
-
-            os.remove(file_path)
+            response = await process_image_message(message, service)
+            content = ""
         else:
-            # Обработка текста...
-            history = user.messages_history[-5:]
-            context = [
-                {
-                    "role": "user" if i % 2 == 0 else "assistant",
-                    "content": entry["message" if i % 2 == 0 else "response"],
-                }
-                for i, entry in enumerate(history)
-            ]
+            context = prepare_context_from_history(user.messages_history)
             response = await service.get_response(message.text, context=context)
+            content = message.text
 
-        # Обновление баланса
+        # Обновление баланса и истории
         manager = await db.get_user_manager()
-        if not message.photo:
-            await manager.update_balance_and_history(
-                user.user_id, tokens_cost, user.current_model, message.text, response
-            )
-        else:
-            await manager.update_balance_and_history(
-                user.user_id, tokens_cost, user.current_model, "", response
-            )
+        await manager.update_balance_and_history(
+            user.user_id, tokens_cost, user.current_model, content, response
+        )
 
-        # Удаляем сообщение об ожидании
+        # Удаляем сообщение ожидания и отправляем ответ
         await message.bot.delete_message(message.chat.id, wait_message.message_id)
+        await send_response_safely(message, response)
 
-        # Отправка ответа
-        try:
-            formatted_response = format_to_html(response)
-            await message.answer(formatted_response, parse_mode=ParseMode.HTML)
-        except Exception as e:
-            await message.answer(response)
-            logger.error(f"HTML format error: {str(e)}")
     except Exception as e:
-        # Удаляем сообщение об ожидании при ошибке
         await message.bot.delete_message(message.chat.id, wait_message.message_id)
         logger.error(f"Message handling failed: {str(e)}")
         await message.answer(f"Помилка обробки повідомлення: {str(e)}")
