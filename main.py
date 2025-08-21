@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 BOT_COMMANDS = [
     ("/start", "start_description"),
     ("/models", "models_description"),
+    ("/agents", "agents_description"),
     ("/invite", "invite_description"),
     ("/profile", "profile_description"),
     ("/help", "help_description"),

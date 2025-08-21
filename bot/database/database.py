@@ -4,7 +4,7 @@ from typing import Dict, Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
-from bot.database.models import User
+from bot.database.models import User, Agent
 from config import GPT_MODEL
 
 # ================================================
@@ -48,20 +48,29 @@ class UserManager:
     @handle_db_errors("обновления баланса и истории")
     async def update_balance_and_history(
         self, user_id: int, tokens_cost: int, model: str,
-        message_text: str, response: str
+        message_text: str, response: str, agent_id: Optional[str] = None
     ) -> None:
         """Обновляет баланс и историю сообщений пользователя."""
-        update_data = {
-            "$inc": {"balance": -tokens_cost},
-            "$push": {
-                "messages_history": {
-                    "model": model,
-                    "message": message_text,
-                    "response": response,
-                    "timestamp": datetime.utcnow(),
-                }
-            },
+        message_entry = {
+            "model": model,
+            "message": message_text,
+            "response": response,
+            "timestamp": datetime.utcnow(),
         }
+        
+        if agent_id:
+            # Update agent-specific history
+            update_data = {
+                "$inc": {"balance": -tokens_cost},
+                "$push": {f"agent_histories.{agent_id}": message_entry}
+            }
+        else:
+            # Update default history
+            update_data = {
+                "$inc": {"balance": -tokens_cost},
+                "$push": {"messages_history": message_entry}
+            }
+        
         await self.db.users.update_one({"user_id": user_id}, update_data)
 
     @handle_db_errors("обновления данных пользователя")
@@ -71,14 +80,103 @@ class UserManager:
 
     @handle_db_errors("добавления приглашенного пользователя")
     async def add_invited_user(self, inviter_id: int, invited_id: int) -> None:
-        """Добавляет приглашенного пользователя и обновляет статус инвайтера."""
+        """Добавляет приглашенного пользователя."""
         await self.db.users.update_one(
             {"user_id": inviter_id},
-            {
-                "$push": {"invited_users": invited_id},
-                "$set": {"access_granted": True},
-            },
+            {"$push": {"invited_users": invited_id}},
         )
+
+    # ================================================
+    # Agent Management Methods
+    # ================================================
+    @handle_db_errors("создания агента")
+    async def create_agent(self, user_id: int, agent: Agent) -> None:
+        """Создает нового агента для пользователя."""
+        await self.db.users.update_one(
+            {"user_id": user_id},
+            {"$push": {"custom_agents": agent.to_dict()}}
+        )
+
+    @handle_db_errors("обновления агента")
+    async def update_agent(self, user_id: int, agent_id: str, update_data: Dict) -> None:
+        """Обновляет данные агента."""
+        await self.db.users.update_one(
+            {"user_id": user_id, "custom_agents.agent_id": agent_id},
+            {"$set": {f"custom_agents.$.": {**update_data, "agent_id": agent_id}}}
+        )
+
+    @handle_db_errors("удаления агента")
+    async def delete_agent(self, user_id: int, agent_id: str) -> None:
+        """Удаляет агента пользователя и его историю."""
+        # Remove agent from custom_agents array
+        await self.db.users.update_one(
+            {"user_id": user_id},
+            {"$pull": {"custom_agents": {"agent_id": agent_id}}}
+        )
+        
+        # Remove agent's message history
+        await self.db.users.update_one(
+            {"user_id": user_id},
+            {"$unset": {f"agent_histories.{agent_id}": ""}}
+        )
+        
+        # If this was the current agent, reset current_agent_id
+        user_data = await self.db.users.find_one({"user_id": user_id})
+        if user_data and user_data.get("current_agent_id") == agent_id:
+            await self.db.users.update_one(
+                {"user_id": user_id},
+                {"$unset": {"current_agent_id": ""}}
+            )
+
+    @handle_db_errors("установки текущего агента")
+    async def set_current_agent(self, user_id: int, agent_id: Optional[str]) -> None:
+        """Устанавливает текущего агента для пользователя."""
+        if agent_id is None:
+            await self.db.users.update_one(
+                {"user_id": user_id},
+                {"$unset": {"current_agent_id": ""}}
+            )
+        else:
+            # Initialize agent history if it doesn't exist
+            await self.db.users.update_one(
+                {"user_id": user_id},
+                {
+                    "$set": {"current_agent_id": agent_id},
+                    "$setOnInsert": {f"agent_histories.{agent_id}": []}
+                },
+                upsert=False
+            )
+            
+            # Ensure agent_histories field exists
+            await self.db.users.update_one(
+                {"user_id": user_id, "agent_histories": {"$exists": False}},
+                {"$set": {"agent_histories": {}}}
+            )
+            
+            # Initialize specific agent history if not exists
+            user_data = await self.db.users.find_one({"user_id": user_id})
+            if user_data and "agent_histories" in user_data:
+                if agent_id not in user_data["agent_histories"]:
+                    await self.db.users.update_one(
+                        {"user_id": user_id},
+                        {"$set": {f"agent_histories.{agent_id}": []}}
+                    )
+    
+    @handle_db_errors("очистки истории")
+    async def clear_history(self, user_id: int, agent_id: Optional[str] = None) -> None:
+        """Очищает историю сообщений для агента или дефолтного режима."""
+        if agent_id:
+            # Clear specific agent history
+            await self.db.users.update_one(
+                {"user_id": user_id},
+                {"$set": {f"agent_histories.{agent_id}": []}}
+            )
+        else:
+            # Clear default history
+            await self.db.users.update_one(
+                {"user_id": user_id},
+                {"$set": {"messages_history": []}}
+            )
 
 
 class Database:
@@ -89,11 +187,12 @@ class Database:
         "balance": 0,
         "current_model": GPT_MODEL,
         "created_at": None,  # Будет установлено в add_user
-        "messages_history": [],
+        "messages_history": [],  # Default mode history
         "invited_users": [],
-        "access_granted": False,
-        "tariff": "free",
         "last_daily_reward": None,
+        "current_agent_id": None,
+        "custom_agents": [],
+        "agent_histories": {},  # Agent-specific histories
     }
 
     def __init__(self, url: str):

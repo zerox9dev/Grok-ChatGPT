@@ -4,14 +4,13 @@ from config import DAILY_TOKENS
 
 
 async def daily_rewards_task(bot, db):
-    """Начисляет ежедневные токены всем пользователям с тарифом 'paid', сбрасывая баланс"""
+    """Начисляет ежедневные токены всем пользователям, сбрасывая баланс"""
     # Текущая дата, сброшенная до начала дня
     today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     yesterday = today - timedelta(days=1)
 
-    # Получаем пользователей, которым нужно начислить токены
+    # Получаем всех пользователей, которым нужно начислить токены
     query = {
-        "tariff": "paid",
         "$or": [
             {"last_daily_reward": {"$lt": yesterday}},
             {"last_daily_reward": {"$exists": False}},
