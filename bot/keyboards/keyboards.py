@@ -27,7 +27,7 @@ def get_models_keyboard(language_code: str = "en") -> InlineKeyboardMarkup:
 # ================================================
 
 def get_agents_main_keyboard(language_code: str = "en") -> InlineKeyboardMarkup:
-    """Главное меню управления агентами"""
+    """Главное меню управления агентами (когда есть агенты)"""
     keyboard = [
         [
             InlineKeyboardButton(
@@ -43,6 +43,19 @@ def get_agents_main_keyboard(language_code: str = "en") -> InlineKeyboardMarkup:
             InlineKeyboardButton(
                 text="🔵 Стандартный режим", 
                 callback_data="agent_switch_default"
+            ),
+        ],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+def get_no_agents_keyboard(language_code: str = "en") -> InlineKeyboardMarkup:
+    """Клавиатура когда у пользователя нет агентов"""
+    keyboard = [
+        [
+            InlineKeyboardButton(
+                text="➕ Создать своего первого агента",
+                callback_data="agent_create"
             ),
         ],
     ]

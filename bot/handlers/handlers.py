@@ -7,13 +7,14 @@ from typing import Optional, Union, Callable, Any
 from aiogram import F, Router, types
 from aiogram.enums import ChatAction, ParseMode
 from aiogram.filters import Command, CommandObject
+from aiogram.exceptions import TelegramBadRequest
 
 
 
 from bot.database.database import Database, UserManager
 from bot.database.models import User, Agent
 from bot.keyboards.keyboards import (
-    get_models_keyboard, get_agents_main_keyboard, get_agents_list_keyboard,
+    get_models_keyboard, get_agents_main_keyboard, get_no_agents_keyboard, get_agents_list_keyboard,
     get_agents_manage_keyboard, get_agent_edit_keyboard, get_delete_confirmation_keyboard
 )
 from bot.locales.utils import get_text
@@ -108,6 +109,7 @@ async def send_localized_message(
         return text
     await message.answer(text, reply_markup=reply_markup)
     return None
+
 
 
 def create_simple_command_handler(message_key: str) -> Callable:
@@ -273,7 +275,7 @@ async def agents_command(message: types.Message, db: Database, user: User):
     if agents_count == 0:
         await send_localized_message(
             message, "no_agents", user,
-            reply_markup=get_agents_main_keyboard(user.language_code)
+            reply_markup=get_no_agents_keyboard(user.language_code)
         )
     else:
         await send_localized_message(
@@ -304,20 +306,19 @@ async def agents_menu_callback(callback: types.CallbackQuery, db: Database, user
     
     if agents_count == 0:
         text = get_text("no_agents", user.language_code)
+        keyboard = get_no_agents_keyboard(user.language_code)
     else:
         text = get_text(
             "agents_menu", user.language_code,
             agents_count=agents_count, current_mode=current_mode
         )
+        keyboard = get_agents_main_keyboard(user.language_code)
     
     try:
-        await callback.message.edit_text(
-            text, reply_markup=get_agents_main_keyboard(user.language_code)
-        )
-    except Exception as e:
-        # If edit fails (e.g., content unchanged), just answer the callback
-        logger.warning(f"Failed to edit message: {e}")
-    
+        await callback.message.edit_text(text, reply_markup=keyboard)
+    except TelegramBadRequest:
+        # Игнорируем ошибку "message is not modified"
+        pass
     await callback.answer()
 
 
@@ -329,7 +330,7 @@ async def agents_list_callback(callback: types.CallbackQuery, db: Database, user
     
     if not agents:
         text = get_text("no_agents", user.language_code)
-        keyboard = get_agents_main_keyboard(user.language_code)
+        keyboard = get_no_agents_keyboard(user.language_code)
     else:
         # Build agents list text
         agents_text = "\n".join([
@@ -350,10 +351,9 @@ async def agents_list_callback(callback: types.CallbackQuery, db: Database, user
     
     try:
         await callback.message.edit_text(text, reply_markup=keyboard)
-    except Exception as e:
-        # If edit fails (e.g., content unchanged), just answer the callback
-        logger.warning(f"Failed to edit message: {e}")
-    
+    except TelegramBadRequest:
+        # Игнорируем ошибку "message is not modified"
+        pass
     await callback.answer()
 
 
@@ -372,9 +372,9 @@ async def agents_manage_callback(callback: types.CallbackQuery, db: Database, us
     
     try:
         await callback.message.edit_text(text, reply_markup=keyboard)
-    except Exception as e:
-        logger.warning(f"Failed to edit message: {e}")
-    
+    except TelegramBadRequest:
+        # Игнорируем ошибку "message is not modified"
+        pass
     await callback.answer()
 
 
@@ -404,9 +404,8 @@ async def agent_switch_callback(callback: types.CallbackQuery, db: Database, use
     
     try:
         await callback.message.edit_text(text)
-    except Exception as e:
-        logger.warning(f"Failed to edit message: {e}")
-        # Send as new message if edit fails
+    except TelegramBadRequest:
+        # Если редактирование невозможно, отправляем новое сообщение
         await callback.message.answer(text)
     
     await callback.answer()
@@ -429,9 +428,9 @@ async def agent_edit_callback(callback: types.CallbackQuery, db: Database, user:
     
     try:
         await callback.message.edit_text(text, reply_markup=keyboard)
-    except Exception as e:
-        logger.warning(f"Failed to edit message: {e}")
-    
+    except TelegramBadRequest:
+        # Игнорируем ошибку "message is not modified"
+        pass
     await callback.answer()
 
 
@@ -455,8 +454,7 @@ async def agent_delete_callback(callback: types.CallbackQuery, db: Database, use
         text = get_text("agent_deleted", user.language_code, name=agent.name)
         try:
             await callback.message.edit_text(text)
-        except Exception as e:
-            logger.warning(f"Failed to edit message: {e}")
+        except TelegramBadRequest:
             await callback.message.answer(text)
         
         await callback.answer()
@@ -475,8 +473,9 @@ async def agent_delete_callback(callback: types.CallbackQuery, db: Database, use
         
         try:
             await callback.message.edit_text(text, reply_markup=keyboard)
-        except Exception as e:
-            logger.warning(f"Failed to edit message: {e}")
+        except TelegramBadRequest:
+            # Игнорируем ошибку "message is not modified"
+            pass
         
         await callback.answer()
 
@@ -501,8 +500,7 @@ async def agent_create_callback(callback: types.CallbackQuery, db: Database, use
     text = get_text("create_agent_start", user.language_code)
     try:
         await callback.message.edit_text(text)
-    except Exception as e:
-        logger.warning(f"Failed to edit message: {e}")
+    except TelegramBadRequest:
         await callback.message.answer(text)
     
     await callback.answer()
@@ -527,8 +525,7 @@ async def agent_edit_name_callback(callback: types.CallbackQuery, db: Database, 
     text = get_text("edit_name_prompt", user.language_code, current_name=agent.name)
     try:
         await callback.message.edit_text(text)
-    except Exception as e:
-        logger.warning(f"Failed to edit message: {e}")
+    except TelegramBadRequest:
         await callback.message.answer(text)
     
     await callback.answer()
@@ -553,8 +550,7 @@ async def agent_edit_prompt_callback(callback: types.CallbackQuery, db: Database
     text = get_text("edit_prompt_prompt", user.language_code, current_prompt=agent.system_prompt[:200] + "..." if len(agent.system_prompt) > 200 else agent.system_prompt)
     try:
         await callback.message.edit_text(text)
-    except Exception as e:
-        logger.warning(f"Failed to edit message: {e}")
+    except TelegramBadRequest:
         await callback.message.answer(text)
     
     await callback.answer()
