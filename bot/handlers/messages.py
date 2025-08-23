@@ -8,6 +8,7 @@ from aiogram.exceptions import TelegramBadRequest
 from bot.database.database import Database
 from bot.database.models import User
 from bot.services.ai_service import AIService
+from bot.prompts import DEFAULT_SYSTEM_PROMPT
 
 from .base import (
     get_user_decorator, send_localized_message, send_response_safely,
@@ -100,15 +101,16 @@ async def handle_message(message: types.Message, db: Database, user: User):
         
         # Get system prompt from current agent if available
         current_agent = user.get_current_agent()
-        base_system_prompt = current_agent.system_prompt if current_agent else ""
         
         # Добавляем ограничение длины ответа для всех запросов
         length_constraint = "ВАЖНО: Ответ должен быть не длиннее 4000 символов. Если нужно показать длинный код - сократи его или покажи только ключевые части."
         
-        if base_system_prompt:
-            system_prompt = f"{base_system_prompt}\n\n{length_constraint}"
+        if current_agent:
+            # Используем промпт агента
+            system_prompt = f"{current_agent.system_prompt}\n\n{length_constraint}"
         else:
-            system_prompt = length_constraint
+            # Используем стандартный системный промпт
+            system_prompt = f"{DEFAULT_SYSTEM_PROMPT}\n\n{length_constraint}"
 
         # Обработка сообщения в зависимости от типа
         if message.photo:

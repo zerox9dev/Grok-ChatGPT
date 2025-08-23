@@ -16,6 +16,8 @@ ERROR_ANTHROPIC_KEY_MISSING = "Ошибка: API ключ Anthropic не нас�
 ERROR_OPERATION_FAILED = "Ошибка при выполнении операции"
 
 
+
+
 def error_handler(func):
     # Декоратор для унификации обработки ошибок
     @wraps(func)
