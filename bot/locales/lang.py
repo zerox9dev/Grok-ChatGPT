@@ -2,9 +2,8 @@
 # Общие тексты для всех языков (без перевода)
 # ================================================
 COMMON_TEXTS = {
-    "gpt_button": "GPT",
-    "claude_button": "Claude", 
-    "free_llama_button": "DeepSeek V3",
+    "gpt_button": "GPT-5",
+    "claude_button": "Claude 4 Sonnet", 
 }
 
 # ================================================
@@ -13,7 +12,7 @@ COMMON_TEXTS = {
 texts = {
     "ru": {
         **COMMON_TEXTS,
-        "start": "👋 Привет, <b>{username}</b>\n\nЭто бот для работы с актуальными моделями нейросетей в Telegram.\n\nКоманды:\n/start - перезапуск\n/reset - очистить историю\n/models - выбрать нейросеть\n/profile - профиль пользователя\n/help - помощь\n\nЧтобы начать использовать нейросеть, просто напишите текст и отправьте его боту. Он будет использовать выбранную вами модель.",
+        "start": "👋 Привет, <b>{username}</b>\n\nЭто бот для работы с актуальными моделями нейросетей в Telegram.\n\nКоманды:\n/start - перезапуск\n/reset - очистить историю\n/models - выбрать нейросеть\n/agents - управление агентами\n/profile - профиль пользователя\n/help - помощь\n\nЧтобы начать использовать нейросеть, просто напишите текст и отправьте его боту. Он будет использовать выбранную вами модель.",
         "profile": "👤 Ваш профиль\n\nID: <b>{user_id}</b>\nБаланс: <b>{balance}</b>\nТекущая модель: <b>{current_model}</b>\n\n🤖 Режим общения: <b>{current_mode}</b>\n📝 Сообщений в истории: <b>{history_count}</b>",
         "profile_mode_default": "Стандартный режим",
         "profile_mode_agent": "Агент: {agent_name}",
@@ -63,7 +62,7 @@ texts = {
     },
     "en": {
         **COMMON_TEXTS,
-        "start": "👋 Hello, <b>{username}</b>\n\nThis is a bot for working with current neural network models in Telegram.\n\nCommands:\n/start - restart\n/reset - clear history\n/models - select neural network\n/profile - user profile\n/help - help\n\nTo start using the neural network, simply type text and send it to the bot. It will use the model you have selected.",
+        "start": "👋 Hello, <b>{username}</b>\n\nThis is a bot for working with current neural network models in Telegram.\n\nCommands:\n/start - restart\n/reset - clear history\n/models - select neural network\n/agents - manage agents\n/profile - user profile\n/help - help\n\nTo start using the neural network, simply type text and send it to the bot. It will use the model you have selected.",
         "profile": "👤 Your profile\n\nID: <b>{user_id}</b>\nBalance: <b>{balance}</b>\nCurrent model: <b>{current_model}</b>\n\n🤖 Chat mode: <b>{current_mode}</b>\n📝 Messages in history: <b>{history_count}</b>",
         "profile_mode_default": "Default mode",
         "profile_mode_agent": "Agent: {agent_name}",
@@ -113,7 +112,7 @@ texts = {
     },
     "uk": {
         **COMMON_TEXTS,
-        "start": "👋 Привіт, <b>{username}</b>\n\nЦе бот для роботи з актуальними моделями нейромереж у Telegram.\n\nКоманди:\n/start - перезапуск\n/reset - очистити історію\n/models - вибрати нейромережу\n/profile - профіль користувача\n/help - допомога\n\nЩоб почати використовувати нейромережу, просто напишіть текст та відправте його боту. Він використовуватиме обрану вами модель.",
+        "start": "👋 Привіт, <b>{username}</b>\n\nЦе бот для роботи з актуальними моделями нейромереж у Telegram.\n\nКоманди:\n/start - перезапуск\n/reset - очистити історію\n/models - вибрати нейромережу\n/agents - управління агентами\n/profile - профіль користувача\n/help - допомога\n\nЩоб почати використовувати нейромережу, просто напишіть текст та відправте його боту. Він використовуватиме обрану вами модель.",
         "profile": "👤 Ваш профіль\n\nID: <b>{user_id}</b>\nБаланс: <b>{balance}</b>\nПоточна модель: <b>{current_model}</b>\n\n🤖 Режим спілкування: <b>{current_mode}</b>\n📝 Повідомлень в історії: <b>{history_count}</b>",
         "profile_mode_default": "Стандартний режим",
         "profile_mode_agent": "Агент: {agent_name}",
