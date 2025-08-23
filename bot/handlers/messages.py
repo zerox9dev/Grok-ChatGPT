@@ -44,14 +44,20 @@ async def process_image_message(message: types.Message, service: AIService) -> s
     return response
 
 def prepare_context_from_history(history: list) -> list:
-    """Подготовка контекста из истории сообщений"""
-    return [
-        {
-            "role": "user" if i % 2 == 0 else "assistant",
-            "content": entry.get("message" if i % 2 == 0 else "response", ""),
-        }
-        for i, entry in enumerate(history[-5:])
-    ]
+    # Подготовка контекста из истории сообщений
+    context = []
+    for i, entry in enumerate(history[-5:]):
+        content_key = "message" if i % 2 == 0 else "response"
+        content = entry.get(content_key, "")
+        
+        # Пропускаем сообщения с пустым содержимым
+        if content and content.strip():
+            context.append({
+                "role": "user" if i % 2 == 0 else "assistant",
+                "content": content.strip(),
+            })
+    
+    return context
 
 # ================================================
 # Главный обработчик сообщений

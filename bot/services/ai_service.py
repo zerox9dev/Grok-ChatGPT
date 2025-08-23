@@ -51,12 +51,18 @@ class AIService:
         # Унифицированная подготовка сообщений для всех типов контента
         if context is None:
             context = []
+        
+        # Фильтруем контекст от пустых сообщений
+        filtered_context = []
+        for msg in context:
+            if msg.get("content") and str(msg["content"]).strip():
+                filtered_context.append(msg)
             
         user_message = {"role": "user", "content": content}
-        messages = context + [user_message]
+        messages = filtered_context + [user_message]
         
-        if system_prompt:
-            messages.insert(0, {"role": "system", "content": system_prompt})
+        if system_prompt and system_prompt.strip():
+            messages.insert(0, {"role": "system", "content": system_prompt.strip()})
         
         return messages
     
