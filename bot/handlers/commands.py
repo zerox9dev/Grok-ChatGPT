@@ -86,7 +86,7 @@ async def admin_send_all(message: types.Message, command: CommandObject, db: Dat
             await message.bot.send_message(user["user_id"], text)
             success_count += 1
         except Exception as e:
-            print(f"Ошибка отправки сообщения пользователю {user['user_id']}: {str(e)}")
+            logger.error(f"Ошибка отправки сообщения пользователю {user['user_id']}: {str(e)}")
             failed_count += 1
 
     await message.answer(

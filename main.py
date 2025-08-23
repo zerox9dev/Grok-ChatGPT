@@ -1,5 +1,4 @@
 import asyncio
-import logging
 
 from aiogram import Bot, Dispatcher, types
 from aiogram.client.default import DefaultBotProperties
@@ -10,13 +9,13 @@ from bot.database.database import Database
 from bot.handlers import router
 from bot.utils.localization import get_text
 from bot.utils.daily_tokens import daily_rewards_task
+from bot.utils.logger import setup_logger
 from config import BOT_TOKEN, MONGO_URL
 
 # ================================================
-# Конфигурация логирования
+# Логгер для главного модуля
 # ================================================
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 # ================================================
 # Константы команд бота

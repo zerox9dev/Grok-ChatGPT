@@ -1,6 +1,12 @@
 from datetime import datetime, timedelta
 
 from config import DAILY_TOKENS
+from bot.utils.logger import setup_logger
+
+# ================================================
+# Логгер для ежедневных токенов
+# ================================================
+logger = setup_logger(__name__)
 
 
 async def daily_rewards_task(bot, db):
@@ -37,12 +43,12 @@ async def daily_rewards_task(bot, db):
             success_count += 1
 
         except Exception as e:
-            print(
+            logger.error(
                 f"Ошибка при начислении токенов пользователю {user['user_id']}: {str(e)}"
             )
             failed_count += 1
 
-    print(
+    logger.info(
         f"Ежедневные токены: начислено {success_count} пользователям, не удалось {failed_count}"
     )
 

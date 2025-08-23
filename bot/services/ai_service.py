@@ -6,6 +6,7 @@ import openai
 import anthropic
 
 from config import OPENAI_API_KEY, ANTHROPIC_API_KEY, GPT_MODEL, MAX_TOKENS
+from bot.utils.logger import setup_logger
 
 
 # ================================================
@@ -14,6 +15,11 @@ from config import OPENAI_API_KEY, ANTHROPIC_API_KEY, GPT_MODEL, MAX_TOKENS
 IMAGE_ANALYSIS_PROMPT = "Опиши это изображение:"
 ERROR_ANTHROPIC_KEY_MISSING = "Ошибка: API ключ Anthropic не настроен"
 ERROR_OPERATION_FAILED = "Ошибка при выполнении операции"
+
+# ================================================
+# Логгер для сервиса ИИ
+# ================================================
+logger = setup_logger(__name__)
 
 
 
@@ -26,11 +32,11 @@ def error_handler(func):
             result = await func(*args, **kwargs)
             # Проверяем что результат не пустой
             if not result or not str(result).strip():
-                print(f"🚨 ПУСТОЙ ОТВЕТ ОТ НЕЙРОСЕТИ:")
-                print(f"   Тип результата: {type(result)}")
-                print(f"   Значение: {repr(result)}")
-                print(f"   Длина: {len(str(result)) if result else 0}")
-                print(f"   Функция: {func.__name__}")
+                logger.warning("🚨 ПУСТОЙ ОТВЕТ ОТ НЕЙРОСЕТИ:")
+                logger.warning(f"   Тип результата: {type(result)}")
+                logger.warning(f"   Значение: {repr(result)}")
+                logger.warning(f"   Длина: {len(str(result)) if result else 0}")
+                logger.warning(f"   Функция: {func.__name__}")
                 return "Нейросеть вернула пустой ответ. Попробуйте переформулировать вопрос."
             return result
         except Exception as e:
@@ -82,16 +88,16 @@ class AIService:
         self, messages: List[Dict[str, str]], system_prompt: str = None
     ) -> str:
         # Универсальный метод для API вызовов к любому провайдеру
-        print(f"📤 Отправляем запрос к нейросети:")
-        print(f"   Модель: {self.model_name}")
-        print(f"   Количество сообщений: {len(messages)}")
+        logger.info(f"📤 Отправляем запрос к нейросети:")
+        logger.info(f"   Модель: {self.model_name}")
+        logger.info(f"   Количество сообщений: {len(messages)}")
         
         # Для Claude логируем системный промпт отдельно, для OpenAI он уже в messages
         if self.is_claude_model():
-            print(f"   Системный промпт (Claude): {repr(system_prompt)}")
+            logger.debug(f"   Системный промпт (Claude): {repr(system_prompt)}")
         
         for i, msg in enumerate(messages):
-            print(f"   Сообщение {i+1}: {msg['role']} -> {repr(msg['content'][:100])}{'...' if len(str(msg['content'])) > 100 else ''}")
+            logger.debug(f"   Сообщение {i+1}: {msg['role']} -> {repr(msg['content'][:100])}{'...' if len(str(msg['content'])) > 100 else ''}")
         
         if self.is_claude_model():
             if not self.anthropic_client:
@@ -107,13 +113,13 @@ class AIService:
                 system=system_prompt or ""
             )
             result = response.content[0].text
-            print(f"🤖 Claude API ответ:")
-            print(f"   Модель: {self.model_name}")
-            print(f"   Тип response.content: {type(response.content)}")
-            print(f"   Длина content: {len(response.content)}")
-            print(f"   Первый элемент: {repr(response.content[0]) if response.content else 'None'}")
-            print(f"   Текст результата: {repr(result)}")
-            print(f"   Длина текста: {len(result) if result else 0}")
+            logger.info(f"🤖 Claude API ответ:")
+            logger.debug(f"   Модель: {self.model_name}")
+            logger.debug(f"   Тип response.content: {type(response.content)}")
+            logger.debug(f"   Длина content: {len(response.content)}")
+            logger.debug(f"   Первый элемент: {repr(response.content[0]) if response.content else 'None'}")
+            logger.debug(f"   Текст результата: {repr(result)}")
+            logger.debug(f"   Длина текста: {len(result) if result else 0}")
             return result
         else:
             # OpenAI
@@ -127,14 +133,14 @@ class AIService:
             result = response.choices[0].message.content
             finish_reason = response.choices[0].finish_reason
             
-            print(f"🤖 OpenAI API ответ:")
-            print(f"   Модель: {self.model_name}")
-            print(f"   Finish reason: {finish_reason}")
-            print(f"   Тип choices: {type(response.choices)}")
-            print(f"   Длина choices: {len(response.choices)}")
-            print(f"   Первый choice: {repr(response.choices[0]) if response.choices else 'None'}")
-            print(f"   Текст результата: {repr(result)}")
-            print(f"   Длина текста: {len(result) if result else 0}")
+            logger.info(f"🤖 OpenAI API ответ:")
+            logger.debug(f"   Модель: {self.model_name}")
+            logger.debug(f"   Finish reason: {finish_reason}")
+            logger.debug(f"   Тип choices: {type(response.choices)}")
+            logger.debug(f"   Длина choices: {len(response.choices)}")
+            logger.debug(f"   Первый choice: {repr(response.choices[0]) if response.choices else 'None'}")
+            logger.debug(f"   Текст результата: {repr(result)}")
+            logger.debug(f"   Длина текста: {len(result) if result else 0}")
             
             # Проверяем причину завершения
             if finish_reason == 'length':

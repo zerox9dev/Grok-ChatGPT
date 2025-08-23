@@ -1,17 +1,16 @@
-import logging
 from datetime import datetime
 from typing import Dict, Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from bot.database.models import User, Agent
+from bot.utils.logger import setup_logger
 from config import GPT_MODEL
 
 # ================================================
-# Конфигурация логирования
+# Логгер для базы данных
 # ================================================
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 
 # ================================================

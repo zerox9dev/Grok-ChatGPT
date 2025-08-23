@@ -1,4 +1,3 @@
-import logging
 import re
 from functools import wraps
 from typing import Optional, Union, Callable, Any
@@ -9,12 +8,12 @@ from aiogram.enums import ParseMode
 from bot.database.database import Database
 from bot.database.models import User
 from bot.utils.localization import get_text
+from bot.utils.logger import setup_logger
 
 # ================================================
-# Инициализация и конфигурация
+# Логгер для обработчиков
 # ================================================
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = setup_logger(__name__)
 
 # ================================================
 # Константы для состояний
