@@ -83,7 +83,11 @@ class AIService:
         print(f"📤 Отправляем запрос к нейросети:")
         print(f"   Модель: {self.model_name}")
         print(f"   Количество сообщений: {len(messages)}")
-        print(f"   Системный промпт: {repr(system_prompt)}")
+        
+        # Для Claude логируем системный промпт отдельно, для OpenAI он уже в messages
+        if self.is_claude_model():
+            print(f"   Системный промпт (Claude): {repr(system_prompt)}")
+        
         for i, msg in enumerate(messages):
             print(f"   Сообщение {i+1}: {msg['role']} -> {repr(msg['content'][:100])}{'...' if len(str(msg['content'])) > 100 else ''}")
         
@@ -143,7 +147,9 @@ class AIService:
         # message: Текст сообщения пользователя, context: Контекст предыдущей беседы
         # system_prompt: Системный промпт для модели
         messages = self._prepare_messages(message, context, system_prompt)
-        return await self._make_api_call(messages, system_prompt)
+        # Для Claude передаем system_prompt отдельно, для OpenAI он уже в messages
+        claude_system_prompt = system_prompt if self.is_claude_model() else None
+        return await self._make_api_call(messages, claude_system_prompt)
     
     def _create_image_content(self, encoded_image: str) -> List[Dict]:
         # Создает контент сообщения с изображением для разных API
