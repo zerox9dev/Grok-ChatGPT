@@ -195,7 +195,18 @@ class Database:
     }
 
     def __init__(self, url: str):
-        self.client = AsyncIOMotorClient(url)
+        # ================================================
+        # Конфигурация SSL для MongoDB Atlas
+        # ================================================
+        self.client = AsyncIOMotorClient(
+            url,
+            tls=True,
+            tlsAllowInvalidCertificates=True,
+            tlsAllowInvalidHostnames=True,
+            serverSelectionTimeoutMS=10000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=10000
+        )
         self.db = self.client.ai_bot
         self.users = self.db.users
         self.user_manager = UserManager(self)

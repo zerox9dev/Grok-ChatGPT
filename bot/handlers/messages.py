@@ -117,13 +117,22 @@ async def handle_message(message: types.Message, db: Database, user: User):
             response = await process_image_message(message, service)
             content = ""
         else:
-            # Get history for current context (agent or default)
-            current_history = user.get_current_history()
-            context = prepare_context_from_history(current_history)
-            response = await service.get_response(
-                message.text, context=context, system_prompt=system_prompt
-            )
             content = message.text
+            
+            if current_agent:
+                # Используем OpenAI Agents для кастомных агентов
+                response = await service.get_agent_response(
+                    agent_name=current_agent.name,
+                    system_prompt=system_prompt,
+                    message=content
+                )
+            else:
+                # Стандартная обработка для режима по умолчанию
+                current_history = user.get_current_history()
+                context = prepare_context_from_history(current_history)
+                response = await service.get_response(
+                    content, context=context, system_prompt=system_prompt
+                )
 
         # Обновление баланса и истории (включаем информацию об агенте)
         manager = await db.get_user_manager()

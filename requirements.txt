@@ -2,5 +2,6 @@ aiogram
 motor
 environs
 openai
+openai-agents
 apscheduler
 anthropic

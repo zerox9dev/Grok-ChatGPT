@@ -1,4 +1,5 @@
 import base64
+from datetime import datetime
 from typing import Dict, List, Optional, Any, Union
 from functools import wraps
 
@@ -7,6 +8,7 @@ import anthropic
 
 from config import OPENAI_API_KEY, ANTHROPIC_API_KEY, GPT_MODEL, MAX_TOKENS
 from bot.utils.logger import setup_logger
+from bot.database.models import Agent
 
 
 # ================================================
@@ -22,6 +24,79 @@ ERROR_OPERATION_FAILED = "Ошибка при выполнении операц�
 logger = setup_logger(__name__)
 
 
+# ================================================
+# Сервис для работы с асинхронными агентами (OpenAI + Claude)
+# ================================================
+class AgentService:
+    """Сервис для создания и управления асинхронными агентами"""
+    
+    def __init__(self, openai_client, anthropic_client=None):
+        # Инициализация сервиса агентов с клиентами для разных провайдеров
+        self._agents_cache = {}
+        self.openai_client = openai_client
+        self.anthropic_client = anthropic_client
+    
+    def create_agent(self, name: str, instructions: str) -> Agent:
+        """Создает нового агента с указанными инструкциями"""
+        agent_key = f"{name}_{hash(instructions)}"
+        
+        if agent_key not in self._agents_cache:
+            logger.info(f"🤖 Создаем нового агента: {name}")
+            agent = Agent(
+                agent_id=Agent.generate_id(),
+                name=name,
+                system_prompt=instructions,
+                created_at=datetime.now()
+            )
+            self._agents_cache[agent_key] = agent
+            logger.debug(f"   Агент создан с инструкциями: {instructions[:100]}...")
+        
+        return self._agents_cache[agent_key]
+    
+    async def get_agent_response(self, agent: Agent, message: str, model: str = None) -> str:
+        """Получает ответ от агента асинхронно"""
+        try:
+            logger.info(f"📤 Отправляем запрос агенту {agent.name}")
+            logger.debug(f"   Сообщение: {message[:100]}...")
+            
+            # Определяем используемую модель
+            current_model = model or GPT_MODEL
+            is_claude = "claude" in current_model.lower()
+            
+            # Подготавливаем сообщения
+            messages = [
+                {"role": "user", "content": message}
+            ]
+            
+            if is_claude and self.anthropic_client:
+                # Для Claude используем Anthropic API
+                logger.debug(f"   Используем Claude модель: {current_model}")
+                response = await self.anthropic_client.messages.create(
+                    model=current_model,
+                    max_tokens=MAX_TOKENS,
+                    messages=messages,
+                    system=agent.system_prompt  # Системный промпт отдельно для Claude
+                )
+                result = response.content[0].text
+            else:
+                # Для OpenAI добавляем системный промпт в сообщения
+                messages.insert(0, {"role": "system", "content": agent.system_prompt})
+                logger.debug(f"   Используем OpenAI модель: {current_model}")
+                response = await self.openai_client.chat.completions.create(
+                    model=current_model,
+                    messages=messages,
+                    max_completion_tokens=MAX_TOKENS
+                )
+                result = response.choices[0].message.content
+            
+            logger.info(f"🤖 Агент {agent.name} ответил")
+            logger.debug(f"   Ответ: {result[:100]}...")
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"❌ Ошибка при работе с агентом {agent.name}: {e}")
+            return f"Ошибка агента: {str(e)}"
 
 
 def error_handler(func):
@@ -54,8 +129,13 @@ class AIService:
         # ================================================
         # Инициализация клиентов
         # ================================================
-        self.openai_client = openai.OpenAI(api_key=OPENAI_API_KEY)
-        self.anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
+        self.openai_client = openai.AsyncOpenAI(api_key=OPENAI_API_KEY)
+        self.anthropic_client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY) if ANTHROPIC_API_KEY else None
+        
+        # ================================================
+        # Сервис агентов (OpenAI + Claude)
+        # ================================================
+        self.agent_service = AgentService(self.openai_client, self.anthropic_client)
     
     def is_claude_model(self) -> bool:
         # Проверяет, является ли текущая модель Claude
@@ -106,7 +186,7 @@ class AIService:
             # Убираем системный промпт из сообщений для Claude
             claude_messages = [msg for msg in messages if msg["role"] != "system"]
             
-            response = self.anthropic_client.messages.create(
+            response = await self.anthropic_client.messages.create(
                 model=self.model_name,
                 max_tokens=MAX_TOKENS,
                 messages=claude_messages,
@@ -129,7 +209,7 @@ class AIService:
                 "max_completion_tokens": MAX_TOKENS
             }
             
-            response = self.openai_client.chat.completions.create(**params)
+            response = await self.openai_client.chat.completions.create(**params)
             result = response.choices[0].message.content
             finish_reason = response.choices[0].finish_reason
             
@@ -158,6 +238,22 @@ class AIService:
         # Для Claude передаем system_prompt отдельно, для OpenAI он уже в messages
         claude_system_prompt = system_prompt if self.is_claude_model() else None
         return await self._make_api_call(messages, claude_system_prompt)
+    
+    async def get_agent_response(self, agent_name: str, system_prompt: str, message: str) -> str:
+        """Получает ответ от агента (поддерживает OpenAI и Claude)"""
+        try:
+            # Создаем или получаем агента из кеша
+            agent = self.agent_service.create_agent(agent_name, system_prompt)
+            
+            # Получаем ответ от агента с передачей текущей модели
+            response = await self.agent_service.get_agent_response(agent, message, self.model_name)
+            
+            return response
+            
+        except Exception as e:
+            logger.error(f"❌ Ошибка при работе с агентом {agent_name}: {e}")
+            # Fallback на обычный метод
+            return await self.get_response(message, system_prompt=system_prompt)
     
     def _create_image_content(self, encoded_image: str) -> List[Dict]:
         # Создает контент сообщения с изображением для разных API
