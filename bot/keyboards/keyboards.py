@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from typing import List, Optional
 
-from bot.locales.utils import get_text
+from bot.utils.localization import get_text
 from bot.database.models import Agent, User
 from config import GPT_MODEL, CLAUDE_MODEL
 
@@ -31,17 +31,17 @@ def get_agents_main_keyboard(language_code: str = "en") -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton(
-                text="📋 Список агентов",
+                text=get_text("agents_list", language_code),
                 callback_data="agents_list"
             ),
             InlineKeyboardButton(
-                text="➕ Создать",
+                text=get_text("create_agent", language_code),
                 callback_data="agent_create"
             ),
         ],
         [
             InlineKeyboardButton(
-                text="🔵 Стандартный режим", 
+                text=get_text("default_mode", language_code), 
                 callback_data="agent_switch_default"
             ),
         ],
@@ -54,7 +54,7 @@ def get_no_agents_keyboard(language_code: str = "en") -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton(
-                text="➕ Создать своего первого агента",
+                text=get_text("create_agent", language_code),
                 callback_data="agent_create"
             ),
         ],
@@ -67,7 +67,7 @@ def get_agents_list_keyboard(agents: List[Agent], current_agent_id: Optional[str
     keyboard = []
     
     # Default mode button
-    default_text = "🟢 Стандартный режим" if current_agent_id is None else "⚪ Стандартный режим"
+    default_text = get_text("default_mode", language_code) if current_agent_id is None else get_text("default_mode", language_code)
     keyboard.append([
         InlineKeyboardButton(
             text=default_text,
@@ -84,7 +84,7 @@ def get_agents_list_keyboard(agents: List[Agent], current_agent_id: Optional[str
             prefix = "🟢" if is_current else "⚪"
             
             row.append(InlineKeyboardButton(
-                text=f"{prefix} {agent.name}",
+                text=f"{prefix} {get_text('current_agent', language_code) if is_current else get_text('inactive_agent', language_code)} {agent.name}",
                 callback_data=f"agent_switch_{agent.agent_id}"
             ))
         keyboard.append(row)
@@ -93,18 +93,18 @@ def get_agents_list_keyboard(agents: List[Agent], current_agent_id: Optional[str
     if agents:
         keyboard.append([
             InlineKeyboardButton(
-                text="✏️ Управление",
+                text=get_text("manage_agents", language_code),
                 callback_data="agents_manage"
             )
         ])
     
     keyboard.append([
         InlineKeyboardButton(
-            text="➕ Создать агента",
+            text=get_text("create_agent", language_code),
             callback_data="agent_create"
         ),
         InlineKeyboardButton(
-            text="◀️ Назад",
+            text=get_text("back", language_code),
             callback_data="agents_menu"
         ),
     ])
@@ -120,18 +120,18 @@ def get_agents_manage_keyboard(agents: List[Agent], language_code: str = "en") -
     for agent in agents:
         keyboard.append([
             InlineKeyboardButton(
-                text=f"✏️ {agent.name}",
+                text=f"{get_text('edit_agent', language_code)} {agent.name}",
                 callback_data=f"agent_edit_{agent.agent_id}"
             ),
             InlineKeyboardButton(
-                text="🗑",
+                text=get_text("delete_agent", language_code),
                 callback_data=f"agent_delete_{agent.agent_id}"
             ),
         ])
     
     keyboard.append([
         InlineKeyboardButton(
-            text="◀️ Назад",
+            text=get_text("back", language_code),
             callback_data="agents_list"
         ),
     ])
@@ -144,25 +144,25 @@ def get_agent_edit_keyboard(agent_id: str, language_code: str = "en") -> InlineK
     keyboard = [
         [
             InlineKeyboardButton(
-                text="✏️ Изменить название",
+                    text=get_text("edit_name", language_code),
                 callback_data=f"agent_edit_name_{agent_id}"
             ),
         ],
         [
             InlineKeyboardButton(
-                text="📝 Изменить промпт",
+                text=get_text("edit_prompt", language_code),
                 callback_data=f"agent_edit_prompt_{agent_id}"
             ),
         ],
         [
             InlineKeyboardButton(
-                text="🗑 Удалить агента",
+                text=get_text("delete_agent", language_code),
                 callback_data=f"agent_delete_{agent_id}"
             ),
         ],
         [
             InlineKeyboardButton(
-                text="◀️ Назад",
+                text=get_text("back", language_code),
                 callback_data="agents_manage"
             ),
         ],
@@ -175,12 +175,12 @@ def get_delete_confirmation_keyboard(agent_id: str, language_code: str = "en") -
     keyboard = [
         [
             InlineKeyboardButton(
-                text="✅ Да, удалить",
-                callback_data=f"agent_delete_confirm_{agent_id}"
+                text=get_text("delete_agent_confirm", language_code),
+                callback_data=f"agent_delete_{agent_id}"
             ),
             InlineKeyboardButton(
-                text="❌ Отмена",
-                callback_data="agents_manage"
+                text=get_text("cancel", language_code),
+                callback_data=f"agent_edit_{agent_id}"
             ),
         ],
     ]
@@ -192,7 +192,7 @@ def get_cancel_keyboard(language_code: str = "en") -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton(
-                text="❌ Отмена",
+                text=get_text("cancel", language_code),
                 callback_data="agents_menu"
             ),
         ],

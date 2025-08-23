@@ -7,7 +7,7 @@ from aiogram.exceptions import TelegramBadRequest
 from bot.database.database import Database
 from bot.database.models import User
 from bot.keyboards.keyboards import get_models_keyboard
-from bot.locales.utils import get_text
+from bot.utils.localization import get_text
 from config import YOUR_ADMIN_ID, REFERRAL_TOKENS
 
 from .base import (

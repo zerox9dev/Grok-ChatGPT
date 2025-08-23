@@ -8,7 +8,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from bot.database.database import Database
 from bot.handlers import router
-from bot.locales.utils import get_text
+from bot.utils.localization import get_text
 from bot.utils.daily_tokens import daily_rewards_task
 from config import BOT_TOKEN, MONGO_URL
 

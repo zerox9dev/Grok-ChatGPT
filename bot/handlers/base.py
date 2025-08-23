@@ -8,7 +8,7 @@ from aiogram.enums import ParseMode
 
 from bot.database.database import Database
 from bot.database.models import User
-from bot.locales.utils import get_text
+from bot.utils.localization import get_text
 
 # ================================================
 # Инициализация и конфигурация

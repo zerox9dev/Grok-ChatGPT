@@ -10,7 +10,7 @@ from bot.keyboards.keyboards import (
     get_agents_main_keyboard, get_no_agents_keyboard, get_agents_list_keyboard,
     get_agents_manage_keyboard, get_agent_edit_keyboard, get_delete_confirmation_keyboard
 )
-from bot.locales.utils import get_text
+from bot.utils.localization import get_text
 
 from .base import (
     get_user_decorator, send_localized_message, USER_STATES, AGENT_CREATION_DATA,
