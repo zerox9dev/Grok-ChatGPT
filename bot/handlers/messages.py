@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from aiogram import Router, types
 from aiogram.enums import ChatAction
+from aiogram.exceptions import TelegramBadRequest
 
 from bot.database.database import Database
 from bot.database.models import User
@@ -13,6 +14,17 @@ from .base import (
     MODEL_SERVICES, logger
 )
 from .agents import handle_agent_creation_conversation
+
+async def safe_delete_message(bot, chat_id: int, message_id: int) -> None:
+    # Безопасное удаление сообщения с обработкой ошибок
+    try:
+        await bot.delete_message(chat_id, message_id)
+    except TelegramBadRequest as e:
+        # Сообщение уже удалено или не существует - это нормально
+        if "message to delete not found" not in str(e).lower():
+            logger.warning(f"Failed to delete message {message_id}: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error deleting message {message_id}: {str(e)}")
 
 # ================================================
 # Роутер для сообщений
@@ -88,7 +100,15 @@ async def handle_message(message: types.Message, db: Database, user: User):
         
         # Get system prompt from current agent if available
         current_agent = user.get_current_agent()
-        system_prompt = current_agent.system_prompt if current_agent else None
+        base_system_prompt = current_agent.system_prompt if current_agent else ""
+        
+        # Добавляем ограничение длины ответа для всех запросов
+        length_constraint = "ВАЖНО: Ответ должен быть не длиннее 4000 символов. Если нужно показать длинный код - сократи его или покажи только ключевые части."
+        
+        if base_system_prompt:
+            system_prompt = f"{base_system_prompt}\n\n{length_constraint}"
+        else:
+            system_prompt = length_constraint
 
         # Обработка сообщения в зависимости от типа
         if message.photo:
@@ -114,11 +134,11 @@ async def handle_message(message: types.Message, db: Database, user: User):
             agent_id=current_agent.agent_id if current_agent else None
         )
 
-        # Удаляем сообщение ожидания и отправляем ответ
-        await message.bot.delete_message(message.chat.id, wait_message.message_id)
+        # Безопасно удаляем сообщение ожидания и отправляем ответ
+        await safe_delete_message(message.bot, message.chat.id, wait_message.message_id)
         await send_response_safely(message, response)
 
     except Exception as e:
-        await message.bot.delete_message(message.chat.id, wait_message.message_id)
+        await safe_delete_message(message.bot, message.chat.id, wait_message.message_id)
         logger.error(f"Message handling failed: {str(e)}")
         await message.answer(f"Помилка обробки повідомлення: {str(e)}")

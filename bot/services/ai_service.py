@@ -21,7 +21,16 @@ def error_handler(func):
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
-            return await func(*args, **kwargs)
+            result = await func(*args, **kwargs)
+            # Проверяем что результат не пустой
+            if not result or not str(result).strip():
+                print(f"🚨 ПУСТОЙ ОТВЕТ ОТ НЕЙРОСЕТИ:")
+                print(f"   Тип результата: {type(result)}")
+                print(f"   Значение: {repr(result)}")
+                print(f"   Длина: {len(str(result)) if result else 0}")
+                print(f"   Функция: {func.__name__}")
+                return "Нейросеть вернула пустой ответ. Попробуйте переформулировать вопрос."
+            return result
         except Exception as e:
             return f"{ERROR_OPERATION_FAILED}: {str(e)}"
     return wrapper
@@ -71,6 +80,13 @@ class AIService:
         self, messages: List[Dict[str, str]], system_prompt: str = None
     ) -> str:
         # Универсальный метод для API вызовов к любому провайдеру
+        print(f"📤 Отправляем запрос к нейросети:")
+        print(f"   Модель: {self.model_name}")
+        print(f"   Количество сообщений: {len(messages)}")
+        print(f"   Системный промпт: {repr(system_prompt)}")
+        for i, msg in enumerate(messages):
+            print(f"   Сообщение {i+1}: {msg['role']} -> {repr(msg['content'][:100])}{'...' if len(str(msg['content'])) > 100 else ''}")
+        
         if self.is_claude_model():
             if not self.anthropic_client:
                 return ERROR_ANTHROPIC_KEY_MISSING
@@ -84,7 +100,15 @@ class AIService:
                 messages=claude_messages,
                 system=system_prompt or ""
             )
-            return response.content[0].text
+            result = response.content[0].text
+            print(f"🤖 Claude API ответ:")
+            print(f"   Модель: {self.model_name}")
+            print(f"   Тип response.content: {type(response.content)}")
+            print(f"   Длина content: {len(response.content)}")
+            print(f"   Первый элемент: {repr(response.content[0]) if response.content else 'None'}")
+            print(f"   Текст результата: {repr(result)}")
+            print(f"   Длина текста: {len(result) if result else 0}")
+            return result
         else:
             # OpenAI
             params = {
@@ -94,7 +118,23 @@ class AIService:
             }
             
             response = self.openai_client.chat.completions.create(**params)
-            return response.choices[0].message.content
+            result = response.choices[0].message.content
+            finish_reason = response.choices[0].finish_reason
+            
+            print(f"🤖 OpenAI API ответ:")
+            print(f"   Модель: {self.model_name}")
+            print(f"   Finish reason: {finish_reason}")
+            print(f"   Тип choices: {type(response.choices)}")
+            print(f"   Длина choices: {len(response.choices)}")
+            print(f"   Первый choice: {repr(response.choices[0]) if response.choices else 'None'}")
+            print(f"   Текст результата: {repr(result)}")
+            print(f"   Длина текста: {len(result) if result else 0}")
+            
+            # Проверяем причину завершения
+            if finish_reason == 'length':
+                return f"⚠️ Ответ был обрезан из-за лимита токенов. Попробуйте задать более короткий вопрос или очистите историю командой /reset."
+            
+            return result
     
     async def get_response(
         self, message: str, context: List[Dict[str, str]] = None, system_prompt: str = None

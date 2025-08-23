@@ -14,7 +14,7 @@ YOUR_ADMIN_ID = 1483953251
 # Модели ИИ
 GPT_MODEL = env.str("GPT_MODEL", "gpt-5")
 CLAUDE_MODEL = env.str("CLAUDE_MODEL", "claude-sonnet-4-20250514")
-MAX_TOKENS = env.int("MAX_TOKENS", 1000)
+MAX_TOKENS = env.int("MAX_TOKENS", 3500)
 
 # API ключи
 OPENAI_API_KEY = env.str("OPENAI_API_KEY")

@@ -39,16 +39,40 @@ MODEL_SERVICES = {}  # Кэш сервисов моделей
 # Утилитные функции для форматирования
 # ================================================
 def format_to_html(text: str) -> str:
-    """Универсальная функция форматирования markdown в HTML"""
+    # Универсальная функция форматирования markdown в HTML
+    
+    # Экранируем HTML теги, кроме разрешенных Telegram
+    import html
+    
+    # Сначала проверяем есть ли блоки кода (они должны остаться как есть)
+    code_blocks = []
+    def preserve_code_blocks(match):
+        code_blocks.append(match.group(0))
+        return f"__CODE_BLOCK_{len(code_blocks)-1}__"
+    
+    # Сохраняем блоки кода (включая SVG, XML, JSON и т.д.)
+    text = re.sub(r'```[\s\S]*?```', preserve_code_blocks, text)
+    text = re.sub(r'`[^`]+`', preserve_code_blocks, text)
+    text = re.sub(r'<svg[\s\S]*?</svg>', preserve_code_blocks, text, flags=re.IGNORECASE)
+    
+    # Экранируем остальные HTML теги
+    text = html.escape(text)
+    
+    # Применяем форматирование
     patterns = [
         (r"### \*\*(.*?)\*\*", r"<b><u>\1</u></b>"),  # Заголовки
-        (r"\*\*(.*?)\*\*", r"<b>\1</b>"),              # Жирный текст
+        (r"\*\*(.*?)\*\*", r"<b>\1</b>"),              # Жирный текст  
         (r"\*(.*?)\*", r"<i>\1</i>"),                  # Курсив
         (r"---", "—————————"),                          # Разделители
     ]
     
     for pattern, replacement in patterns:
         text = re.sub(pattern, replacement, text)
+    
+    # Возвращаем блоки кода
+    for i, code_block in enumerate(code_blocks):
+        text = text.replace(f"__CODE_BLOCK_{i}__", f"<pre>{html.escape(code_block)}</pre>")
+    
     return text
 
 # ================================================
@@ -98,10 +122,22 @@ def create_simple_command_handler(message_key: str) -> Callable:
     return handler
 
 async def send_response_safely(message: types.Message, response: str) -> None:
-    """Безопасная отправка ответа с fallback форматированием"""
+    # Безопасная отправка ответа с fallback форматированием
+    
+    # Проверяем что ответ не пустой
+    if not response or not response.strip():
+        await message.answer("❌ Получен пустой ответ от нейросети. Попробуйте еще раз.")
+        return
+    
     try:
-        formatted_response = format_to_html(response)
+        formatted_response = format_to_html(response.strip())
         await message.answer(formatted_response, parse_mode=ParseMode.HTML)
     except Exception as e:
-        await message.answer(response)
+        # Если ошибка форматирования, отправляем как есть
+        try:
+            await message.answer(response.strip())
+        except Exception as e2:
+            # Если и это не получается, отправляем базовое сообщение об ошибке
+            await message.answer("❌ Ошибка при отправке ответа.")
+            logger.error(f"Response sending failed completely: {str(e2)}")
         logger.error(f"HTML format error: {str(e)}")
