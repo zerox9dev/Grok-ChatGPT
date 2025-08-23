@@ -3,7 +3,7 @@
   "profile": "👤 Your profile\n\nID: <b>{user_id}</b>\nBalance: <b>{balance}</b>\nCurrent model: <b>{current_model}</b>\n\n🤖 Chat mode: <b>{current_mode}</b>\n📝 Messages in history: <b>{history_count}</b>",
   "profile_mode_default": "Default mode",
   "profile_mode_agent": "Agent: {agent_name}",
-  "help": "<b>About the bot </b>\nThe bot works through official APIs.\n\n<b>Limits</b>\nWe provide 10 free requests that renew daily.\n\n<b>Context</b>\nThe bot saves the context of the last 5 messages in each mode. To reset the context, use the /reset command in the selected mode.",
+  "help": "<b>About the bot </b>\nThe bot works through official APIs.\n\n<b>Limits</b>\nWe provide 10 free requests that renew daily.\n\n<b>Memory</b>\nThe bot saves the memory of the last 5 messages in each mode. To reset the memory, use the /reset command in the selected mode.",
   "select_model": "🤖 Current model: {current_model}\n\nChoose a model:",
   "model_changed": "✅ Model changed to {model}\n\nYou can send messages.",
   "no_tokens": "❌ Not enough tokens. Your balance: {balance} tokens. Next reset day: {next_day}",
