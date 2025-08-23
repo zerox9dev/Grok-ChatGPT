@@ -100,10 +100,17 @@ async def send_localized_message(
     return_text: bool = False, **kwargs
 ) -> Optional[str]:
     """Универсальная функция для отправки локализованных сообщений"""
+    # Получаем username бота динамически если нужно для invite_link
+    if "invite_link" not in kwargs:
+        bot_info = await message.bot.get_me()
+        invite_link = f"https://t.me/{bot_info.username}?start={user.user_id}"
+    else:
+        invite_link = kwargs["invite_link"]
+    
     kwargs.update({
         "user_id": user.user_id,
         "username": user.username or "",
-        "invite_link": f"https://t.me/DockMixAIbot?start={user.user_id}",
+        "invite_link": invite_link,
         "balance": getattr(user, 'balance', 0),
         "current_model": getattr(user, 'current_model', 'GPT')
     })

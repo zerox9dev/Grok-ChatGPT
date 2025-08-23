@@ -112,15 +112,16 @@ async def start_command(message: types.Message, db: Database):
 @router.message(Command("invite"))
 @get_user_decorator
 async def invite_command(message: types.Message, db: Database, user: User):
-    """Команда для получения реферальной ссылки"""
-    invite_link = f"https://t.me/DockMixAIbot?start={user.user_id}"
-    text = "\n\n".join(
-        [
-            f"🔗 Ваше реферальное посилання: {invite_link}",
-            f"👥 Ви запросили: {len(user.invited_users)} користувачів",
-        ]
+    # Команда для получения реферальной ссылки с информацией о наградах
+    bot_info = await message.bot.get_me()
+    invite_link = f"https://t.me/{bot_info.username}?start={user.user_id}"
+    
+    await send_localized_message(
+        message, "invite_info", user,
+        invite_link=invite_link,
+        invited_count=len(user.invited_users),
+        referral_tokens=REFERRAL_TOKENS
     )
-    await message.answer(text)
 
 @router.message(Command("profile"))
 @get_user_decorator

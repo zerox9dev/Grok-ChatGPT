@@ -53,5 +53,6 @@
   "delete_agent": "🗑 Удалить",
   "edit_name": "📝 Изменить название",
   "edit_prompt": "📄 Изменить промпт",
-  "cancel": "❌ Отмена"
+  "cancel": "❌ Отмена",
+  "invite_info": "🔗 Ваша реферальная ссылка: {invite_link}\n\n👥 Вы пригласили: {invited_count} пользователей\n💰 Награда: {referral_tokens} токенов за каждого друга!"
 }

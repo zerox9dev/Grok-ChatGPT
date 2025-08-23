@@ -53,5 +53,6 @@
   "delete_agent": "🗑 Delete",
   "edit_name": "📝 Change Name",
   "edit_prompt": "📄 Change Prompt",
-  "cancel": "❌ Cancel"
+  "cancel": "❌ Cancel",
+  "invite_info": "🔗 Your referral link: {invite_link}\n\n👥 You invited: {invited_count} users\n💰 Reward: {referral_tokens} tokens for each friend!"
 }
