@@ -1,37 +1,34 @@
 # AIHelper Bot
+
 ![AIHelper Bot Overview](image/overview.jpg)
 
-My Telegram bot providing access to modern AI models (GPT, Claude) directly in your messenger. Created for convenient work with neural networks without unnecessary complications.
+A Telegram bot providing direct access to modern AI models (GPT, Claude) through your messenger. Simple, efficient, and user-friendly.
 
 ## Features
 
-- **Multiple AI Models**: support for ChatGPT and Claude models via official APIs
-- **Content Generation**:
-  - Text responses with context memory
-  - Image analysis and description
-- **User Management**:
-  - Token-based economy
-  - Daily free tokens
-  - Referral system
-- **Multilingual Support**: Russian, English, and Ukrainian interfaces
-- **Admin Panel**: for monitoring and management
+- **Multiple AI Models**: GPT and Claude support via official APIs
+- **Smart Conversations**: Context memory and image analysis
+- **Token Economy**: Daily free tokens and referral system  
+- **Multi-language**: Russian, English, Ukrainian interfaces
+- **Admin Tools**: Monitoring and management panel
 
 ## Installation
 
-1. Clone the repository
+1. **Clone repository**
 ```bash
-git clone https://github.com/yourusername/aihelper-bot.git
+git clone https://github.com/zerox9dev/Grok-ChatGPT
 cd aihelper-bot
 ```
 
-2. Install dependencies
+2. **Install dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Create a `.env` file with the necessary environment variables
+3. **Configure environment**
+Create `.env` file with your API keys (see example below)
 
-4. Run the bot
+4. **Run the bot**
 ```bash
 python main.py
 ```
@@ -47,30 +44,27 @@ CLAUDE_MODEL=claude-3-7-sonnet-20250219
 OPENAI_API_KEY=your_openai_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
 
-# Telegram and MongoDB settings
+# Telegram and MongoDB
 BOT_TOKEN=your_telegram_bot_token
 MONGO_URL=your_mongodb_url
 ```
 
 ## Bot Commands
 
-- `/start` - start working with the bot
-- `/models` - select AI model
+- `/start` - Initialize the bot
+- `/models` - Select AI model (GPT/Claude)  
+- `/invite` - Get referral link
+- `/profile` - View profile and token balance
+- `/reset` - Clear conversation history
+- `/help` - Get usage help
 
-- `/invite` - get a referral link
-- `/profile` - information about your profile and balance
-- `/reset` - reset conversation history (context)
-- `/help` - get help on using the bot
+## Tech Stack
 
-## Architecture
-
-The bot is built on a modern technology stack:
-
-- **aiogram 3.x** - for interacting with Telegram API
-- **MongoDB** (motor) - asynchronous database operations
-- **OpenAI API** - official access to GPT models
-- **Anthropic API** - official access to Claude models
-- **APScheduler** - for executing scheduled tasks
+- **aiogram 3.x** - Telegram Bot API framework
+- **MongoDB** (motor) - Async database operations
+- **OpenAI API** - GPT models integration
+- **Anthropic API** - Claude models integration
+- **APScheduler** - Scheduled tasks (daily tokens)
 
 ## Project Structure
 
@@ -78,13 +72,13 @@ The bot is built on a modern technology stack:
 aihelper-bot/
 ├── bot/
 │   ├── database/        # MongoDB operations
-│   ├── handlers/        # Command handlers
+│   ├── handlers/        # Command handlers  
 │   ├── keyboards/       # Bot keyboards
-│   ├── locales/         # Multilingual support
+│   ├── locales/         # Multi-language support
 │   ├── services/        # AI services integration
 │   └── utils/           # Helper functions
-├── config.py            # Project configuration
-├── main.py              # Main entry file
+├── config.py            # Configuration
+├── main.py              # Entry point
 └── requirements.txt     # Dependencies
 ```
 
@@ -94,4 +88,4 @@ MIT
 
 ## Contact
 
-If you have any questions or suggestions for improving the bot, contact me via [Telegram](https://t.me/mirvaId).
+Questions or suggestions? Contact me via [Telegram](https://t.me/zerox9dev).
