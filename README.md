@@ -6,18 +6,19 @@ A Telegram bot providing direct access to modern AI models (GPT, Claude) through
 
 ## Features
 
-- **Multiple AI Models**: GPT and Claude support via official APIs
-- **Smart Conversations**: Context memory and image analysis
-- **Token Economy**: Daily free tokens and referral system  
+- **Multiple AI Models**: GPT-5 and Claude 4 Sonnet support via official APIs
+- **Custom AI Agents**: Create personalized agents with custom system prompts
+- **Smart Conversations**: Context memory (last 5 messages) and image analysis
+- **Token Economy**: Daily free tokens (10 requests) and referral system  
 - **Multi-language**: Russian, English, Ukrainian interfaces
-- **Admin Tools**: Monitoring and management panel
+- **Admin Tools**: Broadcast messages and user management
 
 ## Installation
 
 1. **Clone repository**
 ```bash
 git clone https://github.com/zerox9dev/Grok-ChatGPT
-cd aihelper-bot
+cd Grok-ChatGPT
 ```
 
 2. **Install dependencies**
@@ -51,12 +52,14 @@ MONGO_URL=your_mongodb_url
 
 ## Bot Commands
 
-- `/start` - Initialize the bot
+- `/start` - Initialize the bot and get welcome message
 - `/models` - Select AI model (GPT/Claude)  
-- `/invite` - Get referral link
-- `/profile` - View profile and token balance
-- `/reset` - Clear conversation history
-- `/help` - Get usage help
+- `/agents` - Create and manage custom AI agents with system prompts
+- `/invite` - Get referral link to earn tokens
+- `/profile` - View profile, token balance, and current mode
+- `/reset` - Clear conversation history (context)
+- `/help` - Get usage help and information
+- `/cancel` - Cancel current agent creation/editing operation
 
 ## Tech Stack
 
@@ -69,17 +72,18 @@ MONGO_URL=your_mongodb_url
 ## Project Structure
 
 ```
-aihelper-bot/
+Grok-ChatGPT/
 ├── bot/
-│   ├── database/        # MongoDB operations
-│   ├── handlers/        # Command handlers  
-│   ├── keyboards/       # Bot keyboards
+│   ├── database/        # MongoDB operations and models
+│   ├── handlers/        # Command and message handlers  
+│   ├── keyboards/       # Inline keyboards
 │   ├── locales/         # Multi-language support
-│   ├── services/        # AI services integration
-│   └── utils/           # Helper functions
-├── config.py            # Configuration
-├── main.py              # Entry point
-└── requirements.txt     # Dependencies
+│   ├── services/        # AI services (OpenAI, Anthropic)
+│   └── utils/           # Daily tokens and helper functions
+├── config.py            # Environment configuration
+├── main.py              # Bot entry point
+├── requirements.txt     # Python dependencies
+└── image/               # Bot images and assets
 ```
 
 ## License
